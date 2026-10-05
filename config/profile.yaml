@@ -1,219 +1,127 @@
-# Sourced from: Swanand Nagane.pdf + confirmed QA skill list
-# Keep this truthful — only rotate wording / adjacent skills from the resume.
+# Based on the profile details provided by the user.
 
-target_role: "Senior Quality Engineer — Manual + Playwright Automation"
+target_role: "Senior Full Stack Developer"
 
-# Always keep these on the Naukri profile (high job-match value).
+# Keep the listed profile skills stable; only rotate closely related skills.
 core_skills:
-  - Playwright
+  - Angular 12+
+  - Angular
+  - TypeScript
   - JavaScript
-  - Automation Testing
-  - UI Automation
-  - Selenium
-  - BDD
-  - Cucumber
-  - API Testing
-  - Manual Testing
-  - Functional Testing
-  - Regression Testing
-  - Integration Testing
-  - Exploratory Testing
-  - Test Automation Framework
-  - Page Object Model
-  - Jira
-  - Azure DevOps
+  - RxJS
+  - NgRx
+  - HTML5
+  - CSS3
+  - Bootstrap 4
+  - Angular Material
+  - C#
+  - .NET 6
+  - .NET 7
+  - .NET 8
+  - .NET Core
+  - ASP.NET Core
+  - ASP.NET Core Web API
+  - RESTful APIs
+  - LINQ
+  - Entity Framework Core
+  - SQL Server
+  - Microservices
+  - REST API Integration
+  - Authentication & Authorization
+  - JWT
+  - SOLID Principles
+  - Unit Testing
+  - Swagger
+  - Postman
   - Git
   - GitHub
-  - SQL
-  - Agile
-  - SDLC
-  - STLC
-  - TypeScript
-  - Node.js
-  - REST API
-  - Postman
-  - CI/CD
-  - GitHub Actions
-  - AI Testing
-  - GenAI Testing
-  - Prompt Engineering
-  - LLM Testing
+  - Visual Studio Code
 
-# Gentle hourly rotation from this pool (add/remove 1 each run).
 rotate_skills:
-  - Retesting
-  - Unit Testing
-  - Compatibility Testing
-  - Test Case Review
-  - Test Result Reporting
-  - Requirement Validation
-  - Acceptance Criteria Validation
-  - BrowserStack
-  - Mobile Simulators
-  - Real Device Testing
-  - Testim
-  - Testsigma
-  - ChatGPT
-  - Microsoft Copilot
-  - Claude Code
-  - Google Gemini
-  - Core Java
-  - MySQL
-  - Figma
-  - OutSystems
-  - Playwright Automation POC
-  - AI-powered Test Case Creation
-  - Portrait Landscape Testing
-  - JMeter
-  - Performance Testing
-
-# Full confirmed inventory.
-skill_levels:
-  Playwright: Advanced
-  JavaScript: Advanced
-  Automation Testing: Advanced
-  UI Automation: Advanced
-  Selenium: Advanced
-  BDD: Advanced
-  Cucumber: Advanced
-  API Testing: Advanced
-  Manual Testing: Advanced
-  Functional Testing: Advanced
-  Regression Testing: Advanced
-  Integration Testing: Advanced
-  Exploratory Testing: Advanced
-  Test Automation Framework: Advanced
-  Page Object Model: Advanced
-  Jira: Advanced
-  Azure DevOps: Advanced
-  Git: Advanced
-  GitHub: Advanced
-  SQL: Advanced
-  Agile: Advanced
-  SDLC: Advanced
-  STLC: Advanced
-  TypeScript: Advanced
-  Node.js: Advanced
-  REST API: Advanced
-  Postman: Advanced
-  CI/CD: Advanced
-  GitHub Actions: Advanced
-  AI Testing: Advanced
-  GenAI Testing: Advanced
-  Prompt Engineering: Advanced
-  LLM Testing: Advanced
-  Retesting: Advanced
-  Unit Testing: Advanced
-  Compatibility Testing: Advanced
-  Web Application Testing: Advanced
-  Mobile Application Testing: Advanced
-  Test Case Design: Advanced
-  Test Case Execution: Advanced
-  Test Case Review: Advanced
-  Defect Reporting: Advanced
-  Test Result Reporting: Advanced
-  Requirement Validation: Advanced
-  Acceptance Criteria Validation: Advanced
-  Gherkin: Advanced
-  Page Object Model: Advanced
-  Playwright Automation POC: Advanced
-  ChatGPT: Advanced
-  Microsoft Copilot: Advanced
-  Claude Code: Advanced
-  Google Gemini: Advanced
-  Testim: Advanced
-  Testsigma: Advanced
-  AI-powered Test Case Creation: Advanced
-  BrowserStack: Advanced
-  Jenkins: Advanced
-  Azure Pipelines: Advanced
-  Generative AI Testing: Advanced
-  Prompt Testing: Advanced
-  Chatbot Testing: Advanced
-  AI Test Automation: Advanced
-  OpenAI API: Advanced
-  Machine Learning Testing: Advanced
-  Responsible AI Testing: Advanced
-  AI Response Validation: Advanced
-  Mobile Simulators: Advanced
-  Real Device Testing: Advanced
-  Portrait Landscape Testing: Advanced
-  Core Java: Advanced
-  MySQL: Advanced
-  Figma: Advanced
-  OutSystems: Advanced
-  JMeter: Intermediate
-  Performance Testing: Intermediate
+  - REST APIs
+  - REST API
+  - .NET Full Stack Development
+  - Angular Development
+  - Full Stack Development
+  - Web Application Development
+  - Frontend Development
+  - Backend Development
+  - ASP.NET Web API
+  - Entity Framework
+  - SQL
+  - HTML
+  - CSS
+  - Bootstrap
 
 skill_policy:
-  min_total: 18
+  min_total: 25
   max_total: 33
   add_per_run: 1
   remove_per_run: 1
   protect_core: true
 
-# Resume headline (Naukri hard limit ~250 chars).
 headline_variants:
-  - "QA Automation Engineer | 5 Years Experience | Playwright | JavaScript | Selenium | BDD | Cucumber | API Testing | POM | JIRA"
-  - "Automation Test Engineer | Playwright | JavaScript | TypeScript | BDD | Cucumber | API Testing | Page Object Model | CI/CD"
-  - "SDET / QA Automation Engineer | 5 Years QA Experience | Playwright | JavaScript | Selenium | API Automation | BDD | Cucumber | Git"
-  - "QA Automation Engineer | Playwright | JavaScript | API Testing | BDD | Cucumber | POM | Git | CI/CD | Manual Testing"
+  - "Senior Full Stack Developer | 6+ Years | Angular | C# | .NET Core | ASP.NET Core Web API | SQL Server"
+  - "Senior Angular Developer | Angular 12+ | TypeScript | JavaScript | RxJS | NgRx | Angular Material"
+  - "Senior Software Engineer | Angular | C# | .NET 6/7/8 | REST APIs | SQL Server | Microservices"
+  - "Angular .NET Full Stack Developer | Angular | TypeScript | ASP.NET Core | Entity Framework Core | SQL Server"
 
-# Profile summary variants (longer; keep truthful to resume).
 summary_variants:
   - |
-    QA Automation Engineer with 5 years of experience in Software Testing,
-    specializing in Playwright, JavaScript, Selenium, BDD, Cucumber, and Page
-    Object Model. Hands-on experience in Functional, Regression, Integration,
-    API, and Exploratory Testing. Experienced in using AI tools such as
-    ChatGPT, GitHub Copilot, and GenAI techniques to improve test case
-    creation, test analysis, automation development, and QA productivity.
-    Skilled in JIRA, Agile/Scrum, defect lifecycle management, and web
-    application testing. Strong interest in AI-powered test automation and
-    GenAI QA.
+    Senior Full Stack Developer with 6+ years of experience in Angular,
+    TypeScript, JavaScript, C#, .NET Core, ASP.NET Core Web API, SQL Server,
+    REST APIs, and modern web application development. Skilled in RxJS, NgRx,
+    Entity Framework Core, LINQ, microservices, JWT authentication and
+    authorization, and SOLID principles. Experienced with unit testing,
+    Swagger, Postman, Git, GitHub, and Visual Studio Code.
   - |
-    QA Engineer with 5 years of experience in Manual and Automation Testing,
-    with hands-on expertise in Playwright, JavaScript, Selenium, BDD/Cucumber,
-    POM, and API Testing. Experienced in developing automation scripts,
-    executing regression suites, debugging failures, and managing defects using
-    JIRA. Also working with GenAI and AI-assisted testing tools to generate
-    test scenarios, improve automation code, analyze requirements, and enhance
-    testing efficiency. Focused on building expertise in AI-powered QA and
-    modern test automation.
+    Senior Full Stack Developer with 6+ years of experience building modern web
+    applications using Angular 12+, TypeScript, JavaScript, C#, and .NET.
+    Experienced in ASP.NET Core Web API, RESTful API integration, SQL Server,
+    Entity Framework Core, LINQ, RxJS, and NgRx. Familiar with microservices,
+    JWT authentication and authorization, SOLID principles, unit testing,
+    Swagger, Postman, Git, and GitHub.
   - |
-    QA Automation Engineer / SDET with 5 years of experience in software
-    quality assurance and test automation. Proficient in Playwright, JavaScript,
-    Selenium, BDD, Cucumber, POM, API Testing, Git, and JIRA. Hands-on
-    experience with AI-assisted software testing using ChatGPT, GitHub Copilot,
-    prompt engineering, and GenAI-based approaches for test case generation
-    and automation support. Experienced in Agile environments with strong
-    knowledge of Functional, Regression, Integration, and Exploratory Testing.
+    Full Stack Developer with 6+ years of experience across Angular frontend
+    development and C#/.NET backend development. Core technologies include
+    Angular, TypeScript, JavaScript, RxJS, NgRx, ASP.NET Core Web API, .NET 6/7/8,
+    SQL Server, and Entity Framework Core. Works with REST APIs, microservices,
+    authentication and authorization, JWT, SOLID principles, and unit testing.
   - |
-    Automation Test Engineer with 5 years of QA experience, combining strong
-    Manual Testing fundamentals with Playwright and JavaScript automation.
-    Experienced in BDD/Cucumber, POM, API Testing, Functional, Regression,
-    Integration, and Exploratory Testing. Leveraging GenAI tools and
-    AI-assisted development to accelerate test case creation, requirement
-    analysis, automation scripting, debugging, and test coverage. Currently
-    focused on advancing expertise in GenAI QA, AI-powered testing, Playwright
-    automation, and modern QA practices.
+    Senior Software Engineer with 6+ years of experience in modern web
+    application development using Angular, TypeScript, JavaScript, C#, .NET
+    Core, ASP.NET Core Web API, and SQL Server. Skilled in REST API integration,
+    Entity Framework Core, LINQ, RxJS, NgRx, and microservices, with experience
+    using Swagger, Postman, Git, GitHub, and Visual Studio Code.
+
+target_job_titles:
+  - Senior Angular Developer
+  - Senior Frontend Developer
+  - Angular Developer
+  - Senior Full Stack Developer
+  - .NET Full Stack Developer
+  - Angular .NET Developer
+  - Software Engineer
+  - Senior Software Engineer
 
 resume:
   path: assets/resume.pdf
   reupload_each_run: true
 
-# Auto-apply recommended jobs
 job_apply:
   enabled: true
   min_skill_match: 0.60
   max_apply_per_run: 999
   source: recommended_plus_search
   search_queries:
-    - "Playwright Automation"
-    - "Manual Testing"
-    - "QA Engineer Pune"
-    - "BDD Cucumber"
-    - "Mobile Testing BrowserStack"
+    - "Senior Angular Developer"
+    - "Angular Developer TypeScript RxJS NgRx"
+    - "Senior Frontend Developer Angular"
+    - "Senior Full Stack Developer Angular .NET"
+    - ".NET Full Stack Developer ASP.NET Core"
+    - "Angular .NET Developer"
+    - "Senior Software Engineer Angular C#"
+    - "ASP.NET Core Web API SQL Server"
 
 behavior:
   headless: true

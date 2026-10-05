@@ -15,13 +15,16 @@ log = logging.getLogger("naukri.jobs")
 
 RECOMMENDED_URL = "https://www.naukri.com/mnjuser/recommendedjobs"
 
-# Freshness-oriented searches aligned to Swanand's QA stack
+# Freshness-oriented searches aligned to the configured Angular/.NET profile
 SEARCH_QUERIES = [
-    "Playwright Automation",
-    "Manual Testing",
-    "QA Engineer Pune",
-    "BDD Cucumber",
-    "Mobile Testing BrowserStack",
+    "Senior Angular Developer",
+    "Angular Developer TypeScript RxJS NgRx",
+    "Senior Frontend Developer Angular",
+    "Senior Full Stack Developer Angular .NET",
+    ".NET Full Stack Developer ASP.NET Core",
+    "Angular .NET Developer",
+    "Senior Software Engineer Angular C#",
+    "ASP.NET Core Web API SQL Server",
 ]
 
 
