@@ -1,0 +1,24 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.playwright/
+playwright-report/
+test-results/
+artifacts/
+storage_state.json
+*.png
+*.log
+.DS_Store
+# Keep resume out of public remotes (contains phone/email).
+# For GitHub Actions: either use a PRIVATE repo and force-add assets/resume.pdf,
+# or set secret RESUME_B64 (base64 of the PDF).
+assets/resume.pdf
+assets/resume.docx
+assets/*.doc
+assets/*.docx
+assets/*.pdf
+!assets/.gitkeep
+!assets/README.md

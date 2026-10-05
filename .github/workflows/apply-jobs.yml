@@ -1,0 +1,58 @@
+name: Apply Naukri Jobs
+
+on:
+  schedule:
+    # Every 8 hours (UTC). Local runs also start immediately via loop.
+    - cron: "0 */8 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Select matching jobs but do not click Apply"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: naukri-job-apply
+  cancel-in-progress: false
+
+jobs:
+  apply-jobs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Apply matching jobs
+        env:
+          NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
+          NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
+          NAUKRI_STORAGE_STATE_B64: ${{ secrets.NAUKRI_STORAGE_STATE_B64 }}
+          NAUKRI_MODE: apply
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+        run: python src/main.py --mode apply
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: naukri-apply-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
