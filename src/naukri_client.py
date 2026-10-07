@@ -400,7 +400,7 @@ class NaukriAgent:
             log.info("DRY_RUN: planned key skill changes: %s", changes)
             return {**changes, "dry_run": True}
 
-        if not self._open_widget_editor(page, "Key Skills", ".keySkills"):
+        if not self._open_widget_editor(page, "Key skills", ".keySkills"):
             self._screenshot(page, "skills_skip.png")
             raise RuntimeError("Could not open the Naukri key skills editor")
 
