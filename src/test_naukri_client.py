@@ -138,3 +138,34 @@ class ResumeOnlyRunTests(unittest.TestCase):
         summary.assert_not_called()
         skills.assert_not_called()
         browser.close.assert_called_once()
+
+    def test_resume_download_verification_rejects_different_pdf(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "resume.pdf"
+            downloaded = Path(temp_dir) / "downloaded.pdf"
+            source.write_bytes(b"%PDF-1.7\nsource\n%%EOF")
+            downloaded.write_bytes(b"%PDF-1.7\nother resume\n%%EOF")
+
+            with self.assertRaisesRegex(
+                RuntimeError, "does not match the configured PDF"
+            ):
+                NaukriAgent._verify_resume_download(source, downloaded)
+
+    def test_resume_download_verification_rejects_invalid_pdf(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "resume.pdf"
+            downloaded = Path(temp_dir) / "downloaded.pdf"
+            source.write_bytes(b"%PDF-1.7\nsource\n%%EOF")
+            downloaded.write_bytes(b"")
+
+            with self.assertRaisesRegex(RuntimeError, "not a complete PDF"):
+                NaukriAgent._verify_resume_download(source, downloaded)
+
+    def test_resume_download_verification_accepts_exact_pdf(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "resume.pdf"
+            downloaded = Path(temp_dir) / "downloaded.pdf"
+            source.write_bytes(b"%PDF-1.7\nsource\n%%EOF")
+            downloaded.write_bytes(source.read_bytes())
+
+            NaukriAgent._verify_resume_download(source, downloaded)

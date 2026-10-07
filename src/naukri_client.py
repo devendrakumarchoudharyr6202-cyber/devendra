@@ -576,13 +576,111 @@ class NaukriAgent:
         page.wait_for_timeout(5000)
         confirm = page.get_by_role("button", name=re.compile(r"save|update|submit|yes", re.I))
         if confirm.count():
-            try:
-                confirm.first.click(timeout=3000)
-            except Exception:
-                pass
+            confirm.first.click(timeout=3000)
         page.wait_for_timeout(2000)
-        log.info("Resume upload attempted")
+
+        filename = resume_path.name
+        download_control = page.evaluate(
+            """filename => {
+              const leaf = [...document.querySelectorAll('body *')]
+                .find(el => el.children.length === 0 &&
+                  (el.textContent || '').trim() === filename);
+              if (!leaf) return {error: 'uploaded-filename-not-visible'};
+
+              let root = leaf;
+              while (root && root !== document.body) {
+                const text = (root.innerText || '').trim();
+                if (text.includes(filename) && text.length < 600 &&
+                    root.querySelector('button, a, [role="button"]')) break;
+                root = root.parentElement;
+              }
+              if (!root || root === document.body)
+                return {error: 'uploaded-resume-controls-not-found'};
+
+              const controls = [...root.querySelectorAll(
+                'button, a, [role="button"], [tabindex], ' +
+                '[class*="download" i], [title*="download" i], ' +
+                '[aria-label*="download" i]'
+              )];
+              const control = controls.find(el => {
+                const attrs = [
+                  el.getAttribute('aria-label') || '',
+                  el.getAttribute('title') || '',
+                  el.getAttribute('data-tooltip') || '',
+                  typeof el.className === 'string' ? el.className : '',
+                  el.innerText || '',
+                  ...[...el.querySelectorAll('*')].flatMap(child => [
+                    child.getAttribute('aria-label') || '',
+                    child.getAttribute('title') || '',
+                    typeof child.className === 'string' ? child.className : ''
+                  ])
+                ].join(' ');
+                return /download/i.test(attrs);
+              });
+              if (!control) return {
+                error: 'download-control-not-found',
+                controls: controls.map(el => ({
+                  tag: el.tagName,
+                  label: el.getAttribute('aria-label') || '',
+                  title: el.getAttribute('title') || '',
+                  className: typeof el.className === 'string' ? el.className : ''
+                }))
+              };
+              const clickable = control.closest('button, a, [role="button"]')
+                || control;
+              clickable.setAttribute(
+                'data-resume-download-verification', 'true'
+              );
+              return {ok: true};
+            }""",
+            filename,
+        )
+        if not download_control.get("ok"):
+            self._screenshot(page, "resume_verify_skip.png")
+            raise RuntimeError(
+                "Resume upload could not be verified: "
+                f"{download_control.get('error')}; "
+                f"controls={download_control.get('controls', [])}"
+            )
+
+        download = page.locator(
+            '[data-resume-download-verification="true"]'
+        )
+        with page.expect_download(timeout=20000) as download_info:
+            download.click(timeout=5000)
+        downloaded_path = Path(download_info.value.path())
+        try:
+            self._verify_resume_download(resume_path, downloaded_path)
+        except RuntimeError:
+            self._screenshot(page, "resume_verify_failure.png")
+            raise
+
+        uploaded_bytes = resume_path.read_bytes()
+        log.info(
+            "Resume upload verified: Naukri download matches %s (%d bytes)",
+            filename,
+            len(uploaded_bytes),
+        )
         return True
+
+    @staticmethod
+    def _verify_resume_download(
+        source_path: Path, downloaded_path: Path
+    ) -> None:
+        source = source_path.read_bytes()
+        downloaded = downloaded_path.read_bytes()
+        if not downloaded.startswith(b"%PDF-") or not downloaded.rstrip().endswith(
+            b"%%EOF"
+        ):
+            raise RuntimeError(
+                "Naukri's download is not a complete PDF "
+                f"({len(downloaded)} bytes)"
+            )
+        if downloaded != source:
+            raise RuntimeError(
+                "Naukri's downloaded resume does not match the configured PDF "
+                f"(uploaded {len(source)} bytes, downloaded {len(downloaded)} bytes)"
+            )
 
     def _screenshot(self, page: Page, name: str) -> None:
         path = ARTIFACTS / name
