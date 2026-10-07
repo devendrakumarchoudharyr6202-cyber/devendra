@@ -52,9 +52,9 @@ def plan_skills(
 ) -> SkillPlan:
     """Compute a gentle skill rotation.
 
-    - Core skills are always kept
-    - Each run adds up to add_per_run from rotate pool (missing ones)
-    - Each run removes up to remove_per_run non-core skills
+    - Core skills already present are always kept
+    - Each run adds up to add_per_run missing core skills, then rotate skills
+    - Each run removes up to remove_per_run non-core skills in the rotate pool
     - Clamps total into [min_total, max_total]
     """
     seed = _run_seed(now)
@@ -64,21 +64,27 @@ def plan_skills(
     min_total = int(policy.get("min_total", 10))
     max_total = int(policy.get("max_total", 25))
 
-    norm = {s.strip(): s.strip() for s in current if s and s.strip()}
-    core_norm = [s.strip() for s in core if s and s.strip()]
-    rotate_norm = [s.strip() for s in rotate if s and s.strip()]
+    norm = {s.strip().casefold(): s.strip() for s in current if s and s.strip()}
+    core_norm: list[str] = []
+    rotate_norm: list[str] = []
+    for source, target in ((core, core_norm), (rotate, rotate_norm)):
+        seen: set[str] = set()
+        for skill in source:
+            if skill and skill.strip() and skill.strip().casefold() not in seen:
+                target.append(skill.strip())
+                seen.add(skill.strip().casefold())
 
-    # Always ensure core present
-    desired = list(dict.fromkeys([*core_norm, *norm.keys()]))
+    core_keys = {s.casefold() for s in core_norm}
+    rotate_keys = {s.casefold() for s in rotate_norm}
 
-    non_core = [s for s in desired if s not in core_norm]
-    missing_rotate = [s for s in rotate_norm if s not in desired]
-
-    # Removals: prefer non-core that are in rotate pool (safe to cycle)
-    removable = [s for s in non_core if s in rotate_norm] or list(non_core)
+    desired = list(norm.values())
+    desired_keys = set(norm)
+    missing_core = [s for s in core_norm if s.casefold() not in norm]
+    non_core = [s for s in desired if s.casefold() not in core_keys]
+    removable = [s for s in non_core if s.casefold() in rotate_keys]
     to_remove: list[str] = []
     for i in range(min(remove_n, len(removable))):
-        if protect_core and removable[i] in core_norm:
+        if protect_core and removable[i].casefold() in core_keys:
             continue
         idx = _rng_index(seed, len(removable), f"remove:{i}")
         pick = removable.pop(idx % len(removable)) if removable else None
@@ -87,34 +93,43 @@ def plan_skills(
 
     desired = [s for s in desired if s not in to_remove]
 
-    # Additions
     to_add: list[str] = []
-    pool = list(missing_rotate)
-    for i in range(min(add_n, len(pool))):
+    add_slots = add_n
+    for skill in missing_core[:add_slots]:
+        if skill.casefold() not in {s.casefold() for s in desired}:
+            to_add.append(skill)
+            desired.append(skill)
+    add_slots -= len(to_add)
+
+    desired_keys = {s.casefold() for s in desired}
+    pool = [s for s in rotate_norm if s.casefold() not in desired_keys]
+    for i in range(min(add_slots, len(pool))):
         idx = _rng_index(seed, len(pool), f"add:{i}")
         pick = pool.pop(idx % len(pool))
-        if pick not in desired and pick not in to_add:
-            to_add.append(pick)
-            desired.append(pick)
+        to_add.append(pick)
+        desired.append(pick)
 
     # Clamp size
     while len(desired) > max_total:
-        candidates = [s for s in desired if s not in core_norm]
+        candidates = [s for s in desired if s.casefold() not in core_keys]
         if not candidates:
             break
         drop = candidates[_rng_index(seed, len(candidates), f"clamp:{len(desired)}")]
         desired.remove(drop)
-        if drop not in to_remove:
+        if drop.casefold() not in {s.casefold() for s in to_remove}:
             to_remove.append(drop)
+        to_add = [s for s in to_add if s.casefold() != drop.casefold()]
 
-    while len(desired) < min_total and missing_rotate:
-        pool = [s for s in rotate_norm if s not in desired]
+    add_slots = max(0, add_n - len(to_add))
+    while len(desired) < min_total and add_slots:
+        desired_keys = {s.casefold() for s in desired}
+        pool = [s for s in rotate_norm if s.casefold() not in desired_keys]
         if not pool:
             break
         pick = pool[_rng_index(seed, len(pool), f"fill:{len(desired)}")]
         desired.append(pick)
-        if pick not in to_add:
-            to_add.append(pick)
+        to_add.append(pick)
+        add_slots -= 1
 
     return SkillPlan(
         keep_core=core_norm,

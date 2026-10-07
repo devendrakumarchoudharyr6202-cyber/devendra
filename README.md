@@ -89,7 +89,11 @@ base64 -w0 assets/resume.pdf   # → RESUME_B64
 
 The profile skills, headlines, summaries, and target job titles are based on
 the profile details supplied for Angular and .NET full-stack roles. Verify that
-the résumé and profile claims are accurate before running the workflows.
+the résumé and every configured skill/profile claim are accurate before running
+the workflows. Each profile run adds up to `add_per_run` missing
+`core_skills` (in list order), then skills from `rotate_skills`; optional
+rotating skills are removed according to `skill_policy`. Other skills are
+preserved unless needed to enforce `max_total`.
 
 ### 6. Run it
 

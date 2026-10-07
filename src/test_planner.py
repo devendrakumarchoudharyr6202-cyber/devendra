@@ -27,3 +27,45 @@ def test_plan_keeps_core_and_rotates():
     assert "Python" in plan.desired
     assert "Machine Learning" in plan.desired
     assert "Python" not in plan.remove
+
+
+def test_plan_adds_missing_core_skills():
+    plan = plan_skills(
+        current=["Python"],
+        core=["Python", "Machine Learning", "Angular"],
+        rotate=[],
+        policy={"add_per_run": 1, "min_total": 1, "max_total": 10},
+    )
+
+    assert plan.add == ["Machine Learning"]
+    assert "Machine Learning" in plan.desired
+    assert "Angular" not in plan.desired
+
+
+def test_plan_does_not_remove_unconfigured_skills():
+    plan = plan_skills(
+        current=["Python", "Legacy Framework"],
+        core=["Python"],
+        rotate=[],
+        policy={"remove_per_run": 1, "min_total": 1, "max_total": 10},
+    )
+
+    assert plan.remove == []
+    assert "Legacy Framework" in plan.desired
+
+
+def test_plan_removes_only_configured_rotate_skills():
+    plan = plan_skills(
+        current=["Python", "Legacy Framework", "Rotating Skill"],
+        core=["Python"],
+        rotate=["Rotating Skill"],
+        policy={
+            "add_per_run": 0,
+            "remove_per_run": 1,
+            "min_total": 1,
+            "max_total": 10,
+        },
+    )
+
+    assert plan.remove == ["Rotating Skill"]
+    assert "Legacy Framework" in plan.desired

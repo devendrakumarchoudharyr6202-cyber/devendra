@@ -2,7 +2,7 @@
 """Naukri agent entrypoint.
 
 Modes:
-  profile  — refresh headline/summary/resume (skills left unchanged)
+  profile  — refresh headline/summary/key skills/resume
   apply    — apply to matching recommended jobs
   both     — profile then apply (default for scheduled full runs)
 """

@@ -16,7 +16,7 @@ from typing import Any
 
 from playwright.sync_api import Browser, BrowserContext, Page, Playwright, sync_playwright
 
-from planner import pick_headline, pick_summary
+from planner import pick_headline, pick_summary, plan_skills
 
 log = logging.getLogger("naukri")
 
@@ -74,7 +74,7 @@ class NaukriAgent:
 
                 self._update_headline(page, headline)
                 self._update_summary(page, summary)
-                # Key skills are left untouched — no add/remove/rotation
+                result["skills"] = self._update_skills(page)
                 if self.cfg.get("resume", {}).get("reupload_each_run", True):
                     result["resume_uploaded"] = self._reupload_resume(page)
 
@@ -383,6 +383,86 @@ class NaukriAgent:
         deduped = list(dict.fromkeys(skills or []))
         log.info("Read %d skills from profile", len(deduped))
         return deduped
+
+    def _update_skills(self, page: Page) -> dict[str, Any]:
+        current = self._read_skills(page)
+        plan = plan_skills(
+            current=current,
+            core=self.cfg.get("core_skills") or [],
+            rotate=self.cfg.get("rotate_skills") or [],
+            policy=self.cfg.get("skill_policy") or {},
+        )
+        changes = {"added": plan.add, "removed": plan.remove}
+        if not plan.add and not plan.remove:
+            return {**changes, "dry_run": self.dry_run}
+
+        if self.dry_run:
+            log.info("DRY_RUN: planned key skill changes: %s", changes)
+            return {**changes, "dry_run": True}
+
+        if not self._open_widget_editor(page, "Key Skills", ".keySkills"):
+            self._screenshot(page, "skills_skip.png")
+            raise RuntimeError("Could not open the Naukri key skills editor")
+
+        for skill in plan.remove:
+            removed = page.evaluate(
+                """skill => {
+                  const normalize = value => value.trim().toLocaleLowerCase();
+                  const chip = [...document.querySelectorAll('.keySkills span.chip')]
+                    .find(el => normalize(el.getAttribute('title') || el.textContent || '') === normalize(skill));
+                  if (!chip) return 'missing-chip';
+                  const remove = chip.querySelector(
+                    'button, [role="button"], [aria-label*="remove" i], ' +
+                    'i[class*="close" i], i[class*="cross" i], ' +
+                    'span[class*="close" i], span[class*="cross" i], .remove'
+                  );
+                  if (!remove) return 'missing-remove-control';
+                  remove.click();
+                  return 'ok';
+                }""",
+                skill,
+            )
+            if removed != "ok":
+                raise RuntimeError(
+                    f"Could not remove configured key skill {skill!r}: {removed}"
+                )
+
+        skill_input = page.locator(
+            "#keySkillSugg, input[placeholder*='skill' i]"
+        ).first
+        if plan.add and not skill_input.count():
+            self._screenshot(page, "skills_skip.png")
+            raise RuntimeError("Key skills editor input was not found")
+
+        for skill in plan.add:
+            skill_input.fill(skill)
+            page.wait_for_timeout(500)
+            option = page.locator(".sugCont li, [role='option']").filter(
+                has_text=re.compile(rf"^\s*{re.escape(skill)}\s*$", re.I)
+            )
+            if option.count():
+                option.first.click()
+            else:
+                skill_input.press("Enter")
+            page.wait_for_timeout(250)
+
+        if not self._click_save(page):
+            self._screenshot(page, "skills_skip.png")
+            raise RuntimeError("Save button not found for key skills")
+
+        updated = {skill.casefold() for skill in self._read_skills(page)}
+        missing = [skill for skill in plan.add if skill.casefold() not in updated]
+        still_present = [
+            skill for skill in plan.remove if skill.casefold() in updated
+        ]
+        if missing or still_present:
+            raise RuntimeError(
+                "Key skills save could not be verified "
+                f"(missing additions: {missing}, remaining removals: {still_present})"
+            )
+
+        log.info("Key skills updated: %s", changes)
+        return {**changes, "dry_run": False}
 
     def _update_headline(self, page: Page, headline: str) -> None:
         log.info("Updating resume headline (%d chars)", len(headline))
