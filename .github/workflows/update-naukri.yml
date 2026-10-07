@@ -31,14 +31,15 @@ jobs:
         env:
           NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
+          NAUKRI_STORAGE_STATE_GZ_B64: ${{ secrets.NAUKRI_STORAGE_STATE_GZ_B64 }}
           NAUKRI_STORAGE_STATE_B64: ${{ secrets.NAUKRI_STORAGE_STATE_B64 }}
         run: |
-          if [ -n "$NAUKRI_STORAGE_STATE_B64" ]; then
+          if [ -n "$NAUKRI_STORAGE_STATE_GZ_B64" ] || [ -n "$NAUKRI_STORAGE_STATE_B64" ]; then
             echo "Authenticated Naukri session secret is configured"
           elif [ -n "$NAUKRI_EMAIL" ] && [ -n "$NAUKRI_PASSWORD" ]; then
             echo "Naukri email/password secrets are configured"
           else
-            echo "::error::Configure Actions secrets NAUKRI_EMAIL and NAUKRI_PASSWORD, or provide NAUKRI_STORAGE_STATE_B64."
+            echo "::error::Configure Actions secrets NAUKRI_EMAIL and NAUKRI_PASSWORD, or provide a Naukri session secret."
             exit 1
           fi
 
@@ -70,6 +71,7 @@ jobs:
         env:
           NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
+          NAUKRI_STORAGE_STATE_GZ_B64: ${{ secrets.NAUKRI_STORAGE_STATE_GZ_B64 }}
           NAUKRI_STORAGE_STATE_B64: ${{ secrets.NAUKRI_STORAGE_STATE_B64 }}
           NAUKRI_MODE: profile
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}

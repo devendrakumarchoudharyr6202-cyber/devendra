@@ -6,6 +6,7 @@ Uses system Chrome + stealth tweaks because Naukri sits behind Akamai.
 from __future__ import annotations
 
 import base64
+import gzip
 import json
 import logging
 import os
@@ -126,6 +127,22 @@ class NaukriAgent:
         return browser, page
 
     def _load_storage_state(self) -> str | None:
+        compressed_b64 = os.getenv("NAUKRI_STORAGE_STATE_GZ_B64", "").strip()
+        if compressed_b64:
+            encoded = re.sub(r"\s+", "", compressed_b64)
+            try:
+                decoded = gzip.decompress(
+                    base64.b64decode(encoded, validate=True)
+                )
+                state = json.loads(decoded)
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                raise RuntimeError(
+                    "NAUKRI_STORAGE_STATE_GZ_B64 could not be decoded as "
+                    "compressed session JSON. Recreate it with "
+                    "scripts/set_session_secret.py."
+                ) from exc
+            return self._write_storage_state(state, "NAUKRI_STORAGE_STATE_GZ_B64")
+
         b64 = os.getenv("NAUKRI_STORAGE_STATE_B64", "").strip()
         if b64:
             encoded = re.sub(r"\s+", "", b64)
@@ -145,22 +162,25 @@ class NaukriAgent:
                     "JSON. Replace it with Base64 of the complete "
                     "storage_state.json file."
                 ) from exc
-            if not isinstance(state, dict) or not isinstance(
-                state.get("cookies"), list
-            ) or not isinstance(state.get("origins", []), list):
-                raise RuntimeError(
-                    "NAUKRI_STORAGE_STATE_B64 decoded, but is not a Playwright "
-                    "storage state. Re-create the secret from "
-                    "storage_state.json."
-                )
-            path = ARTIFACTS / "storage_state.from_secret.json"
-            path.write_text(json.dumps(state), encoding="utf-8")
-            log.info("Loaded storage state from secret")
-            return str(path)
+            return self._write_storage_state(state, "NAUKRI_STORAGE_STATE_B64")
         if STORAGE_PATH.exists():
             log.info("Loaded local storage_state.json")
             return str(STORAGE_PATH)
         return None
+
+    @staticmethod
+    def _write_storage_state(state: Any, source: str) -> str:
+        if not isinstance(state, dict) or not isinstance(
+            state.get("cookies"), list
+        ) or not isinstance(state.get("origins", []), list):
+            raise RuntimeError(
+                f"{source} decoded, but is not a Playwright storage state. "
+                "Re-create the secret from storage_state.json."
+            )
+        path = ARTIFACTS / "storage_state.from_secret.json"
+        path.write_text(json.dumps(state), encoding="utf-8")
+        log.info("Loaded storage state from %s", source)
+        return str(path)
 
     def _save_storage(self) -> None:
         if self._context is None:
@@ -222,7 +242,8 @@ class NaukriAgent:
         if not self.email or not self.password:
             raise RuntimeError(
                 "Saved Naukri session is missing or expired. Refresh "
-                "NAUKRI_STORAGE_STATE_B64/storage_state.json, or configure "
+                "NAUKRI_STORAGE_STATE_GZ_B64, NAUKRI_STORAGE_STATE_B64, or "
+                "storage_state.json, or configure "
                 "NAUKRI_EMAIL and NAUKRI_PASSWORD."
             )
 

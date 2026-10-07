@@ -29,15 +29,17 @@ def load_config() -> dict[str, Any]:
 def credentials(*, allow_session: bool = False) -> tuple[str, str]:
     email = os.getenv("NAUKRI_EMAIL", "").strip()
     password = os.getenv("NAUKRI_PASSWORD", "").strip()
-    has_session = bool(os.getenv("NAUKRI_STORAGE_STATE_B64", "").strip()) or (
-        ROOT / "storage_state.json"
-    ).is_file()
+    has_session = any(
+        os.getenv(name, "").strip()
+        for name in ("NAUKRI_STORAGE_STATE_GZ_B64", "NAUKRI_STORAGE_STATE_B64")
+    ) or (ROOT / "storage_state.json").is_file()
     if allow_session and has_session and (not email or not password):
         return "", ""
     if not email or not password:
         raise SystemExit(
             "Missing Naukri authentication. Set both NAUKRI_EMAIL and "
             "NAUKRI_PASSWORD, or provide an authenticated "
-            "NAUKRI_STORAGE_STATE_B64/session file."
+            "NAUKRI_STORAGE_STATE_GZ_B64, NAUKRI_STORAGE_STATE_B64, or a session "
+            "file."
         )
     return email, password

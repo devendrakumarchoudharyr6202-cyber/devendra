@@ -38,6 +38,7 @@ Repo → **Settings → Secrets and variables → Actions**:
 |--------|----------|------------|
 | `NAUKRI_EMAIL` | With password login | Naukri login email |
 | `NAUKRI_PASSWORD` | With email login | Naukri password |
+| `NAUKRI_STORAGE_STATE_GZ_B64` | Either this or the email/password pair | Compressed authenticated browser session; preferred for Actions secrets |
 | `NAUKRI_STORAGE_STATE_B64` | Either this or the email/password pair | Base64 authenticated browser session; refresh it when expired |
 | `RESUME_B64` | optional | base64 of resume.pdf if not in repo |
 
@@ -57,17 +58,18 @@ pip install -r requirements.txt
 playwright install chromium
 cp .env.example .env   # fill email/password
 python scripts/capture_session.py
-base64 -w0 storage_state.json
 ```
 
-On Windows PowerShell, copy the Base64 value without printing it:
+On Windows, install and authenticate GitHub CLI (`gh auth login`), then update
+the session secret directly without copying or displaying it:
 
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes(".\storage_state.json")) | Set-Clipboard
+```bash
+python scripts/set_session_secret.py
 ```
 
-Paste the complete clipboard value into the GitHub secret
-`NAUKRI_STORAGE_STATE_B64` (secret name), with the Base64 value as its secret.
+The script removes only Naukri's large similar-jobs recommendation caches,
+compresses the remaining session, verifies it fits GitHub's secret-size limit,
+and sends it to GitHub using the CLI. The workflow decompresses it at runtime.
 Re-capture when the session expires (usually weeks).
 
 ### 4. Add your résumé

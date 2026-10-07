@@ -7,8 +7,7 @@ Usage:
   python scripts/capture_session.py
 
 Then:
-  base64 -w0 storage_state.json
-  → paste into GitHub secret NAUKRI_STORAGE_STATE_B64
+  python scripts/set_session_secret.py
 """
 
 from __future__ import annotations
@@ -47,9 +46,8 @@ def main() -> int:
         page.goto(PROFILE)
         context.storage_state(path=str(OUT))
         browser.close()
-    print(f"Saved session → {OUT}")
-    print("Encode for GitHub secret:")
-    print(f"  base64 -w0 {OUT.name}")
+        print(f"Saved session → {OUT}")
+        print("Next, run: python scripts/set_session_secret.py")
     return 0
 
 
