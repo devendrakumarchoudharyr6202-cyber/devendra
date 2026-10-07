@@ -113,7 +113,11 @@ class ResumeSummaryRunTests(unittest.TestCase):
     def test_resume_run_only_updates_summary_and_uploads_resume(self):
         agent = object.__new__(NaukriAgent)
         agent.dry_run = False
-        agent.cfg = {"scheduled_summary": "Full Stack Development summary"}
+        agent.cfg = {
+            "scheduled_summary": (
+                "Full Stack Developer with 6+ years of experience."
+            )
+        }
         browser = MagicMock()
         page = MagicMock()
         playwright_context = MagicMock()
@@ -128,7 +132,9 @@ class ResumeSummaryRunTests(unittest.TestCase):
             patch.object(agent, "_save_storage"),
             patch.object(agent, "_screenshot"),
             patch.object(agent, "_update_headline") as headline,
-            patch.object(agent, "_update_summary", return_value=True) as summary,
+            patch.object(
+                agent, "_update_summary", side_effect=[True, True]
+            ) as summary,
             patch.object(agent, "_update_skills") as skills,
         ):
             result = agent.run_resume_summary()
@@ -141,11 +147,82 @@ class ResumeSummaryRunTests(unittest.TestCase):
                 "dry_run": False,
             },
         )
-        summary.assert_called_once_with(page, agent.cfg["scheduled_summary"])
+        self.assertEqual(
+            summary.call_args_list,
+            [
+                unittest.mock.call(
+                    page,
+                    "with 6+ years of experience.",
+                    ensure_absent="Full Stack Developer",
+                ),
+                unittest.mock.call(
+                    page, agent.cfg["scheduled_summary"]
+                ),
+            ],
+        )
         upload.assert_called_once_with(page)
         headline.assert_not_called()
         skills.assert_not_called()
         browser.close.assert_called_once()
+
+    def test_summary_remove_step_fails_if_phrase_remains_visible(self):
+        agent = object.__new__(NaukriAgent)
+        agent.dry_run = False
+        page = MagicMock()
+        page.locator.return_value.count.return_value = 1
+        page.evaluate.return_value = (
+            "Full Stack Developer with 6+ years of experience."
+        )
+
+        with (
+            patch.object(agent, "_open_widget_editor", return_value=True),
+            patch.object(agent, "_click_save", return_value=True),
+            patch.object(agent, "_screenshot"),
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError, "could not be verified"
+            ):
+                agent._update_summary(
+                    page,
+                    "with 6+ years of experience.",
+                    ensure_absent="Full Stack Developer",
+                )
+
+    def test_resume_run_retries_if_adding_summary_opening_fails(self):
+        agent = object.__new__(NaukriAgent)
+        agent.dry_run = False
+        agent.cfg = {
+            "scheduled_summary": (
+                "Full Stack Developer with 6+ years of experience."
+            )
+        }
+        browser = MagicMock()
+        page = MagicMock()
+        playwright_context = MagicMock()
+        playwright_context.__enter__.return_value = object()
+
+        with (
+            patch("naukri_client.sync_playwright", return_value=playwright_context),
+            patch.object(agent, "_launch", return_value=(browser, page)),
+            patch.object(agent, "_assert_not_blocked"),
+            patch.object(agent, "_login"),
+            patch.object(agent, "_reupload_resume", return_value=True),
+            patch.object(agent, "_save_storage"),
+            patch.object(agent, "_screenshot"),
+            patch.object(
+                agent,
+                "_update_summary",
+                side_effect=[True, RuntimeError("temporary save issue"), True],
+            ) as summary,
+        ):
+            result = agent.run_resume_summary()
+
+        self.assertTrue(result["summary_updated"])
+        self.assertEqual(summary.call_count, 3)
+        self.assertEqual(
+            summary.call_args_list[-1],
+            unittest.mock.call(page, agent.cfg["scheduled_summary"]),
+        )
 
     def test_resume_download_verification_rejects_different_pdf(self):
         with tempfile.TemporaryDirectory() as temp_dir:

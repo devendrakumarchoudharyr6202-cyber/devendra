@@ -111,7 +111,50 @@ class NaukriAgent:
                 if not uploaded and not self.dry_run:
                     raise RuntimeError("Resume upload did not complete")
 
-                summary_updated = self._update_summary(page, summary)
+                if self.dry_run:
+                    summary_updated = self._update_summary(page, summary)
+                else:
+                    phrase = "Full Stack Developer"
+                    if not summary.startswith(phrase):
+                        raise ValueError(
+                            "scheduled_summary must start with "
+                            f"{phrase!r} to run the remove-and-add update"
+                        )
+
+                    without_phrase = summary[len(phrase):].lstrip()
+                    removed = self._update_summary(
+                        page, without_phrase, ensure_absent=phrase
+                    )
+                    if not removed:
+                        raise RuntimeError(
+                            "Could not remove the scheduled summary opening"
+                        )
+
+                    try:
+                        summary_updated = self._update_summary(page, summary)
+                    except Exception as add_error:
+                        log.warning(
+                            "Could not restore the scheduled summary opening "
+                            "on the first attempt (%s); retrying once",
+                            add_error,
+                        )
+                        try:
+                            summary_updated = self._update_summary(page, summary)
+                        except Exception as retry_error:
+                            raise RuntimeError(
+                                "Could not restore the scheduled summary "
+                                "opening after retry; the profile may still "
+                                "show the summary without it"
+                            ) from retry_error
+                        if not summary_updated:
+                            raise RuntimeError(
+                                "Summary restoration retry did not complete"
+                            ) from add_error
+                        log.warning(
+                            "Scheduled summary was restored successfully on "
+                            "retry"
+                        )
+
                 if not summary_updated and not self.dry_run:
                     raise RuntimeError("Profile summary update did not complete")
 
@@ -536,7 +579,13 @@ class NaukriAgent:
         else:
             log.warning("Save not found for headline")
 
-    def _update_summary(self, page: Page, summary: str) -> bool:
+    def _update_summary(
+        self,
+        page: Page,
+        summary: str,
+        *,
+        ensure_absent: str | None = None,
+    ) -> bool:
         log.info("Updating profile summary (%d chars)", len(summary))
         if not self._open_widget_editor(page, "Profile summary"):
             self._screenshot(page, "summary_skip.png")
@@ -560,8 +609,16 @@ class NaukriAgent:
               return root ? (root.innerText || '').replace(/\\s+/g, ' ').trim() : '';
             }"""
         )
+        normalized_visible = " ".join(visible_summary.split()).casefold()
         expected_prefix = " ".join(summary[:80].split()).casefold()
-        if expected_prefix not in " ".join(visible_summary.split()).casefold():
+        unexpected_text = (
+            ensure_absent is not None
+            and " ".join(ensure_absent.split()).casefold() in normalized_visible
+        )
+        if (
+            expected_prefix not in normalized_visible
+            or unexpected_text
+        ):
             self._screenshot(page, "summary_verify_failure.png")
             raise RuntimeError(
                 "Saved profile summary could not be verified on the profile page"

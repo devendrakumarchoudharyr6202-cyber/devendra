@@ -100,8 +100,10 @@ preserved unless needed to enforce `max_total`.
 - **Actions → Update Naukri Profile → Run workflow** (manual test)
 - Or wait for the hourly schedule: 08:00–20:00 India time (`30 2-14 * * *` UTC)
 
-The hourly workflow updates only the configured profile summary and uploads the
-resume; it does not change the headline or key skills.
+The hourly workflow removes the opening "Full Stack Developer" phrase from the
+configured profile summary, verifies that removal, adds the phrase back, and
+uploads the resume; it does not change the headline or key skills. Scheduled
+runs happen automatically and do not require a prompt.
 
 ## Job auto-apply (every 8 hours)
 
