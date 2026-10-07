@@ -107,13 +107,13 @@ class NaukriAgent:
                     raise ValueError(
                         "scheduled_summary is missing from config/profile.yaml"
                     )
-                summary_updated = self._update_summary(page, summary)
-                if not summary_updated and not self.dry_run:
-                    raise RuntimeError("Profile summary update did not complete")
-
                 uploaded = self._reupload_resume(page)
                 if not uploaded and not self.dry_run:
                     raise RuntimeError("Resume upload did not complete")
+
+                summary_updated = self._update_summary(page, summary)
+                if not summary_updated and not self.dry_run:
+                    raise RuntimeError("Profile summary update did not complete")
 
                 self._save_storage()
                 self._screenshot(page, "resume_summary_done.png")
@@ -598,9 +598,14 @@ class NaukriAgent:
 
         file_input.first.set_input_files(str(resume_path))
         page.wait_for_timeout(5000)
-        confirm = page.get_by_role("button", name=re.compile(r"save|update|submit|yes", re.I))
-        if confirm.count():
-            confirm.first.click(timeout=3000)
+        confirm = page.get_by_role(
+            "button", name=re.compile(r"^(save|submit|yes)$", re.I)
+        )
+        for index in range(confirm.count()):
+            button = confirm.nth(index)
+            if button.is_visible() and button.is_enabled():
+                button.click(timeout=5000)
+                break
         page.wait_for_timeout(2000)
 
         filename = resume_path.name
