@@ -74,8 +74,16 @@ def main() -> int:
 
     encoded, compact_size = encode_storage_state()
     result = subprocess.run(
-        ["gh", "secret", "set", SECRET_NAME, "--repo", REPOSITORY],
-        input=encoded,
+        [
+            "gh",
+            "secret",
+            "set",
+            SECRET_NAME,
+            "--repo",
+            REPOSITORY,
+            "--body",
+            encoded,
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -83,7 +91,7 @@ def main() -> int:
     if result.returncode:
         raise SystemExit(
             "GitHub CLI could not update the session secret. "
-            f"Details: {result.stderr.strip()}"
+            f"Details: {(result.stderr or result.stdout).strip()}"
         )
 
     print(

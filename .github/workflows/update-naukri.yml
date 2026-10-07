@@ -34,8 +34,10 @@ jobs:
           NAUKRI_STORAGE_STATE_GZ_B64: ${{ secrets.NAUKRI_STORAGE_STATE_GZ_B64 }}
           NAUKRI_STORAGE_STATE_B64: ${{ secrets.NAUKRI_STORAGE_STATE_B64 }}
         run: |
-          if [ -n "$NAUKRI_STORAGE_STATE_GZ_B64" ] || [ -n "$NAUKRI_STORAGE_STATE_B64" ]; then
-            echo "Authenticated Naukri session secret is configured"
+          if [ -n "$NAUKRI_STORAGE_STATE_GZ_B64" ]; then
+            echo "Compressed Naukri session secret is configured"
+          elif [ -n "$NAUKRI_STORAGE_STATE_B64" ]; then
+            echo "Legacy Base64 Naukri session secret is configured"
           elif [ -n "$NAUKRI_EMAIL" ] && [ -n "$NAUKRI_PASSWORD" ]; then
             echo "Naukri email/password secrets are configured"
           else
