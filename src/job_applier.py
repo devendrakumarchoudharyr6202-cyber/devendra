@@ -9,7 +9,7 @@ from urllib.parse import quote_plus
 
 from playwright.sync_api import Page
 
-from job_matcher import JobCard, skill_match_ratio
+from job_matcher import age_to_hours, experience_includes_years, max_ctc_lpa, skill_match_ratio
 
 log = logging.getLogger("naukri.jobs")
 
@@ -45,6 +45,13 @@ def collect_recommended_jobs(page: Page, limit: int = 40) -> list[dict[str, Any]
             || a.querySelector('p.title')?.innerText?.trim() || '',
           company: a.querySelector('.companyWrapper span')?.getAttribute('title') || '',
           age_text: (a.querySelector('.jobTupleFooter')?.innerText || '').split('\\n')[0].trim(),
+          salary_text: [...a.querySelectorAll(
+            '.ni-job-tuple-icon-srp-rupee, .salary, .sal, [class*="salary"]'
+          )].map(e => e.innerText.trim()).filter(Boolean).join(' '),
+          experience_text: [...a.querySelectorAll(
+            '.exp-wrap, [class*="experience"], [class*="exp"]'
+          )].map(e => e.innerText.trim()).filter(Boolean).join(' '),
+          already_applied: /\\b(already applied|you have applied|applied)\\b/i.test(a.innerText || ''),
           required_skills: [...a.querySelectorAll('ul.tags li')].map(li => li.innerText.trim()).filter(Boolean),
           source: 'recommended'
         }))""",
@@ -56,12 +63,12 @@ def collect_search_jobs(page: Page, query: str, limit: int = 20) -> list[dict[st
     # sort=date / freshness via naukri search URL
     url = (
         f"https://www.naukri.com/{quote_plus(query).replace('+', '-').lower()}-jobs"
-        f"?k={quote_plus(query)}&experience=3&jobAge=7&nignbevent_src=jobsearchDeskGNB"
+        f"?k={quote_plus(query)}&experience=6&jobAge=1&nignbevent_src=jobsearchDeskGNB"
     )
     # Prefer simpler k= search which Naukri accepts
     url = (
         "https://www.naukri.com/software-developer-jobs"
-        f"?k={quote_plus(query)}&experience=3&jobAge=15"
+        f"?k={quote_plus(query)}&experience=6&jobAge=1"
     )
     page.goto(url, wait_until="domcontentloaded", timeout=90000)
     page.wait_for_timeout(3500)
@@ -76,11 +83,20 @@ def collect_search_jobs(page: Page, query: str, limit: int = 20) -> list[dict[st
             const tags = [...a.querySelectorAll('ul.tags-gt li, ul.tags li, .tag-li, .dot')]
               .map(e => e.innerText.trim()).filter(t => t && t.length < 40);
             const ageEl = a.querySelector('.job-post-day, .jobTupleFooter, span.job-post-day');
+            const salaryText = [...a.querySelectorAll(
+              '.ni-job-tuple-icon-srp-rupee, .salary, .sal, [class*="salary"]'
+            )].map(e => e.innerText.trim()).filter(Boolean).join(' ');
+            const experienceText = [...a.querySelectorAll(
+              '.exp-wrap, [class*="experience"], [class*="exp"]'
+            )].map(e => e.innerText.trim()).filter(Boolean).join(' ');
             return {
               job_id: a.getAttribute('data-job-id') || (idMatch ? idMatch[1] : ''),
               title: link?.innerText?.trim() || a.querySelector('.title')?.innerText?.trim() || '',
               company: a.querySelector('a.comp-name, .companyInfo, span.comp-name')?.innerText?.trim() || '',
               age_text: (ageEl?.innerText || '').split('\\n')[0].trim(),
+              salary_text: salaryText,
+              experience_text: experienceText,
+              already_applied: /\\b(already applied|you have applied|applied)\\b/i.test(a.innerText || ''),
               required_skills: tags,
               href,
               source: 'search'
@@ -121,22 +137,24 @@ def rank_jobs(
     return ranked
 
 
-def _apply_on_detail(page: Page, href: str, dry_run: bool) -> bool:
+def _apply_on_detail(page: Page, href: str, dry_run: bool) -> tuple[bool, str]:
     if not href:
-        return False
+        return False, "Job detail URL unavailable"
     page.goto(href, wait_until="domcontentloaded", timeout=90000)
     page.wait_for_timeout(2500)
+    body_text = page.locator("body").inner_text()
+    if re.search(r"\b(already applied|you have applied|application submitted)\b", body_text, re.I):
+        return False, "Already applied or application already submitted"
     btn = page.locator("#apply-button, button:has-text('Apply'), a:has-text('Apply')").first
     if not btn.count():
         log.warning("No apply button on %s", href)
-        return False
+        return False, "Apply button unavailable"
     text = (btn.inner_text() or "").lower()
     if "applied" in text:
-        log.info("Already applied: %s", href)
-        return False
+        return False, "Already applied"
     if dry_run:
         log.info("DRY_RUN detail apply: %s", href)
-        return True
+        return False, "Dry run; application not submitted"
     btn.click()
     page.wait_for_timeout(3000)
     for label in ("Continue", "Apply", "OK", "Submit", "Done"):
@@ -147,7 +165,20 @@ def _apply_on_detail(page: Page, href: str, dry_run: bool) -> bool:
                 page.wait_for_timeout(1200)
             except Exception:
                 pass
-    return True
+    confirmation = page.locator("body").inner_text()
+    if re.search(
+        r"\b(application submitted|successfully applied|application sent|applied successfully)\b",
+        confirmation,
+        re.I,
+    ):
+        return True, "Application confirmation shown"
+    applied_button = page.locator(
+        "button:has-text('Applied'), a:has-text('Applied'), "
+        "#apply-button:has-text('Applied')"
+    )
+    if applied_button.count():
+        return True, "Apply control changed to Applied"
+    return False, "Submission could not be confirmed"
 
 
 def apply_jobs(
@@ -158,6 +189,9 @@ def apply_jobs(
     max_apply: int = 5,
     dry_run: bool = False,
     search_queries: list[str] | None = None,
+    experience_years: int = 6,
+    min_ctc_lpa: float = 30.0,
+    max_age_hours: int = 24,
 ) -> dict[str, Any]:
     raw: list[dict[str, Any]] = []
     raw.extend(collect_recommended_jobs(page))
@@ -167,128 +201,131 @@ def apply_jobs(
         except Exception as exc:
             log.warning("Search failed for %s: %s", q, exc)
 
-    ranked = rank_jobs(raw, profile_skills, min_match)
-    selected = ranked[:max_apply]
+    unique: list[dict[str, Any]] = []
+    skipped: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for item in raw:
+        key = str(item.get("job_id") or item.get("href") or "")
+        if not key:
+            key = f"{item.get('title', '')}|{item.get('company', '')}".lower()
+        if key in seen:
+            skipped.append({
+                "title": item.get("title") or "(untitled)",
+                "company": item.get("company") or "",
+                "reason": "Duplicate listing in this run",
+            })
+            continue
+        seen.add(key)
+        unique.append(item)
+
+    eligible: list[dict[str, Any]] = []
+    for item in unique:
+        title = item.get("title") or "(untitled)"
+        company = item.get("company") or ""
+
+        def skip(reason: str) -> None:
+            skipped.append({"title": title, "company": company, "reason": reason})
+
+        ratio = skill_match_ratio(item.get("required_skills") or [], profile_skills)
+        if ratio + 1e-9 < min_match:
+            skip(f"Skill match below {min_match:.0%}")
+            continue
+        age_text = item.get("age_text") or ""
+        age_hours = age_to_hours(age_text)
+        if age_hours > max_age_hours:
+            skip("Posting age missing or older than 24 hours")
+            continue
+        if not experience_includes_years(item.get("experience_text") or "", experience_years):
+            skip(f"Experience requirement does not clearly include {experience_years}+ years")
+            continue
+        salary_max = max_ctc_lpa(item.get("salary_text") or "")
+        if salary_max is None:
+            skip("CTC not clearly disclosed")
+            continue
+        if salary_max <= min_ctc_lpa:
+            skip(f"Maximum CTC is not above ₹{min_ctc_lpa:g} LPA")
+            continue
+        if item.get("already_applied"):
+            skip("Already applied")
+            continue
+        eligible.append({
+            **item,
+            "match_ratio": ratio,
+            "age_hours": age_hours,
+            "max_ctc_lpa": salary_max,
+        })
+
+    eligible.sort(key=lambda item: (item["age_hours"], -item["match_ratio"]))
+    selected = eligible[:max_apply]
 
     log.info(
-        "Jobs scanned=%d matched>=%.0f%%=%d applying=%d",
+        "Jobs scanned=%d eligible=%d applying=%d",
         len(raw),
-        min_match * 100,
-        len(ranked),
+        len(eligible),
         len(selected),
     )
     for job in selected:
         log.info(
-            "  → %.0f%% | %s | %s @ %s | skills=%s",
-            job.match_ratio * 100,
-            job.age_text,
-            job.title,
-            job.company,
-            job.required_skills,
+            "  → %.0f%% | %s | %s @ %s | CTC max ₹%.1f LPA",
+            job["match_ratio"] * 100,
+            job["age_text"],
+            job["title"],
+            job["company"],
+            job["max_ctc_lpa"],
         )
 
+    submitted: list[dict[str, str]] = []
+    unconfirmed: list[dict[str, str]] = []
     result: dict[str, Any] = {
         "scanned": len(raw),
-        "matched": len(ranked),
+        "jobs_found": len(raw),
+        "jobs_matching_criteria": len(eligible),
         "selected": [
             {
-                "job_id": j.job_id,
-                "title": j.title,
-                "company": j.company,
-                "age": j.age_text,
-                "match": round(j.match_ratio, 3),
-                "skills": j.required_skills,
+                "job_id": j.get("job_id", ""),
+                "title": j.get("title", ""),
+                "company": j.get("company", ""),
+                "age": j.get("age_text", ""),
+                "match": round(j["match_ratio"], 3),
+                "ctc_max_lpa": j["max_ctc_lpa"],
+                "skills": j.get("required_skills", []),
             }
             for j in selected
         ],
         "applied_count": 0,
         "applied": False,
+        "applications_submitted": submitted,
+        "applications_unconfirmed": unconfirmed,
+        "skipped": skipped,
         "dry_run": dry_run,
         "message": "",
     }
 
     if not selected:
-        result["message"] = "No jobs met the 50% required-skill match."
+        result["message"] = "No jobs met all skill, posting-age, experience, and salary criteria."
         return result
 
-    # Prefer multi-apply on recommended page for jobs that came from there
-    page.goto(RECOMMENDED_URL, wait_until="domcontentloaded", timeout=90000)
-    page.wait_for_timeout(2500)
-    _scroll(page, 4)
-
-    selected_ids = []
-    need_detail: list[JobCard] = []
     for job in selected:
-        exists = page.evaluate(
-            """(jobId) => !!document.querySelector(`article.jobTuple[data-job-id="${jobId}"]`)""",
-            job.job_id,
-        )
-        if exists and job.job_id.isdigit():
-            selected_ids.append(job.job_id)
+        href = job.get("href") or ""
+        if not href and str(job.get("job_id", "")).isdigit():
+            href = f"https://www.naukri.com/job-listings-{job['job_id']}"
+        success, status = _apply_on_detail(page, href, dry_run)
+        details = {
+            "title": job.get("title", ""),
+            "company": job.get("company", ""),
+            "reason": status,
+        }
+        if success:
+            submitted.append(details)
+        elif dry_run or status == "Submission could not be confirmed":
+            unconfirmed.append(details)
         else:
-            need_detail.append(job)
+            skipped.append(details)
 
-    applied = 0
-    if selected_ids:
-        for jid in selected_ids:
-            page.evaluate(
-                """(jobId) => {
-                  const art = document.querySelector(`article.jobTuple[data-job-id="${jobId}"]`);
-                  if (!art) return false;
-                  art.scrollIntoView({block:'center'});
-                  const box = art.querySelector('.tuple-check-box i, .naukicon-ot-checkbox, .tuple-check-box');
-                  if (!box) return false;
-                  box.click();
-                  return true;
-                }""",
-                jid,
-            )
-            page.wait_for_timeout(250)
-
-        if dry_run:
-            result["message"] = f"DRY_RUN: selected {len(selected_ids)} on recommended feed."
-        else:
-            apply_btn = page.locator("button.multi-apply-button").filter(
-                has_text=re.compile(r"apply", re.I)
-            )
-            if not apply_btn.count():
-                apply_btn = page.get_by_role(
-                    "button", name=re.compile(r"apply\s+\d+\s+job", re.I)
-                )
-            if apply_btn.count():
-                apply_btn.first.click()
-                page.wait_for_timeout(4000)
-                for label in ("Continue", "Apply", "OK", "Done", "Submit"):
-                    btn = page.get_by_role("button", name=re.compile(rf"^{label}$", re.I))
-                    if btn.count() and btn.first.is_visible():
-                        try:
-                            btn.first.click(timeout=2000)
-                            page.wait_for_timeout(1200)
-                        except Exception:
-                            pass
-                applied += len(selected_ids)
-            else:
-                log.warning("Multi-apply button missing")
-
-    # Detail-page apply for search results not on recommended list
-    for job in need_detail:
-        # Rebuild href if needed
-        href = ""
-        for j in raw:
-            if str(j.get("job_id")) == job.job_id and j.get("href"):
-                href = j["href"]
-                break
-        if not href and job.job_id.isdigit():
-            href = f"https://www.naukri.com/job-listings-{job.job_id}"
-        if _apply_on_detail(page, href, dry_run):
-            applied += 1
-
-    result["applied_count"] = applied
-    result["applied"] = applied > 0
-    result["message"] = (
-        f"Applied/attempted {applied} of {len(selected)} selected jobs."
-        if not dry_run
-        else f"DRY_RUN: would apply {len(selected)} jobs."
-    )
+    result["applied_count"] = len(submitted)
+    result["applied"] = bool(submitted)
+    result["applications_submitted"] = submitted
+    result["applications_unconfirmed"] = unconfirmed
+    result["message"] = f"Confirmed {len(submitted)} submitted applications."
     log.info(result["message"])
     return result

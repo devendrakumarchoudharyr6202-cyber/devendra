@@ -76,6 +76,9 @@ def run_apply_only(cfg: dict) -> dict:
                 max_apply=max_apply,
                 dry_run=agent.dry_run,
                 search_queries=job_cfg.get("search_queries"),
+                experience_years=int(cfg.get("experience_years", 6)),
+                min_ctc_lpa=float(job_cfg.get("min_ctc_lpa", 30)),
+                max_age_hours=int(job_cfg.get("max_posting_age_hours", 24)),
             )
             agent._save_storage()
             agent._screenshot(page, "apply_done.png")

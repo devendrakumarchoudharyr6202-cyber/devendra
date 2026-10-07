@@ -170,6 +170,62 @@ def age_to_hours(age_text: str) -> int:
     return 10_000
 
 
+def max_ctc_lpa(salary_text: str) -> float | None:
+    """Return the clearly stated maximum annual CTC in LPA, if parseable."""
+    text = (salary_text or "").lower().replace(",", "").replace("₹", " ")
+    unit_pattern = r"(lpa|lacs?|lakhs?|crores?|cr)\b"
+    number = r"(\d+(?:\.\d+)?)"
+    multiplier = {
+        "lpa": 1.0,
+        "lac": 1.0,
+        "lacs": 1.0,
+        "lakh": 1.0,
+        "lakhs": 1.0,
+        "cr": 100.0,
+        "crore": 100.0,
+        "crores": 100.0,
+    }
+
+    ranged = re.search(
+        rf"{number}\s*(?:-|to)\s*{number}\s*{unit_pattern}", text
+    )
+    if ranged:
+        return float(ranged.group(2)) * multiplier[ranged.group(3)]
+
+    single = re.search(rf"{number}\s*{unit_pattern}", text)
+    if single:
+        return float(single.group(1)) * multiplier[single.group(2)]
+
+    rupee_range = re.search(
+        r"(?:₹|rs\.?|inr)\s*(\d+(?:\.\d+)?)\s*(?:-|to)\s*"
+        r"(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d+)?)\s*(?:per annum|p\.?a\.?|annual)",
+        (salary_text or "").lower().replace(",", ""),
+    )
+    if rupee_range:
+        return float(rupee_range.group(2)) / 100_000
+    return None
+
+
+def experience_includes_years(experience_text: str, years: int) -> bool:
+    """Whether an explicit experience range includes the requested years."""
+    text = (experience_text or "").lower()
+    number = r"(\d+(?:\.\d+)?)"
+    ranged = re.search(
+        rf"{number}\s*(?:-|to)\s*{number}\s*(?:\+?\s*)?"
+        r"(?:years?|yrs?)\b",
+        text,
+    )
+    if ranged:
+        return float(ranged.group(1)) <= years <= float(ranged.group(2))
+
+    minimum = re.search(rf"{number}\s*\+\s*(?:years?|yrs?)\b", text)
+    if minimum:
+        return years >= float(minimum.group(1))
+
+    single = re.search(rf"{number}\s*(?:years?|yrs?)\b", text)
+    return bool(single and float(single.group(1)) == years)
+
+
 @dataclass
 class JobCard:
     job_id: str

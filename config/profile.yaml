@@ -1,6 +1,7 @@
 # Based on the profile details provided by the user.
 
 target_role: "Senior Full Stack Developer"
+experience_years: 6
 
 # Keep the listed profile skills stable; only rotate closely related skills.
 core_skills:
@@ -112,6 +113,8 @@ job_apply:
   enabled: true
   min_skill_match: 0.60
   max_apply_per_run: 999
+  min_ctc_lpa: 30
+  max_posting_age_hours: 24
   source: recommended_plus_search
   search_queries:
     - "Senior Angular Developer"
