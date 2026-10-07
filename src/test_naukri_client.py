@@ -109,10 +109,11 @@ class StorageStateSecretTests(unittest.TestCase):
             self.agent._load_storage_state()
 
 
-class ResumeOnlyRunTests(unittest.TestCase):
-    def test_resume_run_does_not_edit_other_profile_fields(self):
+class ResumeSummaryRunTests(unittest.TestCase):
+    def test_resume_run_only_updates_summary_and_uploads_resume(self):
         agent = object.__new__(NaukriAgent)
         agent.dry_run = False
+        agent.cfg = {"scheduled_summary": "Full Stack Development summary"}
         browser = MagicMock()
         page = MagicMock()
         playwright_context = MagicMock()
@@ -127,15 +128,22 @@ class ResumeOnlyRunTests(unittest.TestCase):
             patch.object(agent, "_save_storage"),
             patch.object(agent, "_screenshot"),
             patch.object(agent, "_update_headline") as headline,
-            patch.object(agent, "_update_summary") as summary,
+            patch.object(agent, "_update_summary", return_value=True) as summary,
             patch.object(agent, "_update_skills") as skills,
         ):
-            result = agent.run_resume_upload()
+            result = agent.run_resume_summary()
 
-        self.assertEqual(result, {"resume_uploaded": True, "dry_run": False})
+        self.assertEqual(
+            result,
+            {
+                "summary_updated": True,
+                "resume_uploaded": True,
+                "dry_run": False,
+            },
+        )
+        summary.assert_called_once_with(page, agent.cfg["scheduled_summary"])
         upload.assert_called_once_with(page)
         headline.assert_not_called()
-        summary.assert_not_called()
         skills.assert_not_called()
         browser.close.assert_called_once()
 

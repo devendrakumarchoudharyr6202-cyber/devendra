@@ -92,7 +92,7 @@ class NaukriAgent:
             finally:
                 browser.close()
 
-    def run_resume_upload(self) -> dict[str, Any]:
+    def run_resume_summary(self) -> dict[str, Any]:
         with sync_playwright() as p:
             browser, page = self._launch(p)
             try:
@@ -102,21 +102,31 @@ class NaukriAgent:
                 page.wait_for_timeout(3000)
                 self._assert_not_blocked(page)
 
+                summary = self.cfg.get("scheduled_summary", "").strip()
+                if not summary:
+                    raise ValueError(
+                        "scheduled_summary is missing from config/profile.yaml"
+                    )
+                summary_updated = self._update_summary(page, summary)
+                if not summary_updated and not self.dry_run:
+                    raise RuntimeError("Profile summary update did not complete")
+
                 uploaded = self._reupload_resume(page)
                 if not uploaded and not self.dry_run:
                     raise RuntimeError("Resume upload did not complete")
 
                 self._save_storage()
-                self._screenshot(page, "resume_done.png")
+                self._screenshot(page, "resume_summary_done.png")
                 result = {
+                    "summary_updated": summary_updated,
                     "resume_uploaded": uploaded,
                     "dry_run": self.dry_run,
                 }
-                log.info("Resume-only run complete: %s", result)
+                log.info("Resume and summary run complete: %s", result)
                 return result
             except Exception:
                 try:
-                    self._screenshot(page, "resume_failure.png")
+                    self._screenshot(page, "resume_summary_failure.png")
                 except Exception:
                     pass
                 raise
@@ -526,25 +536,39 @@ class NaukriAgent:
         else:
             log.warning("Save not found for headline")
 
-    def _update_summary(self, page: Page, summary: str) -> None:
+    def _update_summary(self, page: Page, summary: str) -> bool:
         log.info("Updating profile summary (%d chars)", len(summary))
         if not self._open_widget_editor(page, "Profile summary"):
-            log.warning("Could not open summary editor — skipping")
             self._screenshot(page, "summary_skip.png")
-            return
+            raise RuntimeError("Could not open profile summary editor")
         box = page.locator("#profileSummaryTxt")
         if not box.count():
-            log.warning("No textarea for summary")
-            return
+            self._screenshot(page, "summary_skip.png")
+            raise RuntimeError("Profile summary textarea was not found")
         box.fill(summary[:1000])
         if self.dry_run:
             log.info("DRY_RUN: not saving summary")
             page.keyboard.press("Escape")
-            return
-        if self._click_save(page):
-            log.info("Summary saved")
-        else:
-            log.warning("Save button not found for summary")
+            return False
+        if not self._click_save(page):
+            self._screenshot(page, "summary_skip.png")
+            raise RuntimeError("Save button not found for profile summary")
+
+        visible_summary = page.evaluate(
+            """() => {
+              const root = document.querySelector('.profileSummary');
+              return root ? (root.innerText || '').replace(/\\s+/g, ' ').trim() : '';
+            }"""
+        )
+        expected_prefix = " ".join(summary[:80].split()).casefold()
+        if expected_prefix not in " ".join(visible_summary.split()).casefold():
+            self._screenshot(page, "summary_verify_failure.png")
+            raise RuntimeError(
+                "Saved profile summary could not be verified on the profile page"
+            )
+
+        log.info("Profile summary saved and verified")
+        return True
 
     def _reupload_resume(self, page: Page) -> bool:
         resume_rel = self.cfg.get("resume", {}).get("path", "assets/resume.pdf")

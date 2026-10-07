@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Skip uploading the resume"
+        description: "Preview summary update and skip profile saves/resume upload"
         type: boolean
         default: false
 
@@ -75,7 +75,7 @@ jobs:
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
           NAUKRI_STORAGE_STATE_GZ_B64: ${{ secrets.NAUKRI_STORAGE_STATE_GZ_B64 }}
           NAUKRI_STORAGE_STATE_B64: ${{ secrets.NAUKRI_STORAGE_STATE_B64 }}
-          NAUKRI_MODE: resume
+          NAUKRI_MODE: resume_summary
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
         run: python src/main.py
 

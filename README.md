@@ -1,7 +1,8 @@
 # Naukri Profile Agent (GitHub Actions)
 
-The GitHub Actions workflows upload the latest resume to Naukri hourly between
-08:00 and 20:00 India time and apply to matching jobs using the settings in
+The GitHub Actions workflows update the profile summary and upload the latest
+resume to Naukri hourly between 08:00 and 20:00 India time and apply to matching
+jobs using the settings in
 `config/profile.yaml`. The profile configuration is for a Senior Full Stack
 Developer with 6+ years of experience in Angular and C#/.NET.
 
@@ -12,7 +13,7 @@ GitHub cron (resume upload hourly 08:00–20:00 India time / job applications ev
    → checkout repo
    → Playwright (Chromium)
    → login via session cookie secret (preferred) or email/password
-   → upload resume only during the hourly profile workflow
+   → update the configured summary and upload the resume during the hourly workflow
    → upload screenshots as artifacts
 ```
 
@@ -99,8 +100,8 @@ preserved unless needed to enforce `max_total`.
 - **Actions → Update Naukri Profile → Run workflow** (manual test)
 - Or wait for the hourly schedule: 08:00–20:00 India time (`30 2-14 * * *` UTC)
 
-The hourly workflow only uploads the resume; it does not change headline,
-summary, or skills.
+The hourly workflow updates only the configured profile summary and uploads the
+resume; it does not change the headline or key skills.
 
 ## Job auto-apply (every 8 hours)
 
