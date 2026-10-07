@@ -60,7 +60,15 @@ python scripts/capture_session.py
 base64 -w0 storage_state.json
 ```
 
-Paste the base64 string into `NAUKRI_STORAGE_STATE_B64`. Re-capture when the session expires (usually weeks).
+On Windows PowerShell, copy the Base64 value without printing it:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes(".\storage_state.json")) | Set-Clipboard
+```
+
+Paste the complete clipboard value into the GitHub secret
+`NAUKRI_STORAGE_STATE_B64` (secret name), with the Base64 value as its secret.
+Re-capture when the session expires (usually weeks).
 
 ### 4. Add your résumé
 

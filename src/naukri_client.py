@@ -6,6 +6,7 @@ Uses system Chrome + stealth tweaks because Naukri sits behind Akamai.
 from __future__ import annotations
 
 import base64
+import json
 import logging
 import os
 import re
@@ -127,8 +128,33 @@ class NaukriAgent:
     def _load_storage_state(self) -> str | None:
         b64 = os.getenv("NAUKRI_STORAGE_STATE_B64", "").strip()
         if b64:
+            encoded = re.sub(r"\s+", "", b64)
+            if len(encoded) % 4 == 1:
+                raise RuntimeError(
+                    "NAUKRI_STORAGE_STATE_B64 is not valid Base64. Re-create "
+                    "the secret from storage_state.json and paste the complete "
+                    "Base64 value without quotes."
+                )
+            encoded += "=" * (-len(encoded) % 4)
+            try:
+                decoded = base64.b64decode(encoded, validate=True)
+                state = json.loads(decoded)
+            except (ValueError, json.JSONDecodeError) as exc:
+                raise RuntimeError(
+                    "NAUKRI_STORAGE_STATE_B64 could not be decoded as session "
+                    "JSON. Replace it with Base64 of the complete "
+                    "storage_state.json file."
+                ) from exc
+            if not isinstance(state, dict) or not isinstance(
+                state.get("cookies"), list
+            ) or not isinstance(state.get("origins", []), list):
+                raise RuntimeError(
+                    "NAUKRI_STORAGE_STATE_B64 decoded, but is not a Playwright "
+                    "storage state. Re-create the secret from "
+                    "storage_state.json."
+                )
             path = ARTIFACTS / "storage_state.from_secret.json"
-            path.write_bytes(base64.b64decode(b64))
+            path.write_text(json.dumps(state), encoding="utf-8")
             log.info("Loaded storage state from secret")
             return str(path)
         if STORAGE_PATH.exists():
