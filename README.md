@@ -9,7 +9,7 @@ resume uploads.
 ## How it works
 
 ```text
-GitHub cron (daily profile refresh / job applications every 8 hours)
+GitHub cron (profile refresh every 30 minutes / job applications every 8 hours)
    → checkout repo
    → Playwright (Chromium)
    → login via session cookie secret (preferred) or email/password
@@ -84,7 +84,7 @@ the résumé and profile claims are accurate before running the workflows.
 ### 6. Run it
 
 - **Actions → Update Naukri Profile → Run workflow** (manual test)
-- Or wait for the daily cron (`0 0 * * *` UTC; 05:30 IST)
+- Or wait for the 30-minute cron (`*/30 * * * *` UTC)
 
 Use `dry_run: true` on manual runs first to verify selectors without saving.
 
@@ -120,4 +120,4 @@ Same UTC hour → same plan (safe retries).
 - Naukri UI changes often; if a step skips, check Action artifacts (`summary_skip.png`, `skills_skip.png`, `failure.png`) and adjust selectors in `src/naukri_client.py`.
 - Automated profile updates and job applications may be subject to Naukri terms; review each workflow and keep profile claims truthful.
 - Prefer session cookies over password login in CI.
-- Cron is UTC. Profile refresh runs at 05:30 IST; job applications run every 8 hours.
+- Cron is UTC. Profile refresh is scheduled every 30 minutes; job applications run every 8 hours.

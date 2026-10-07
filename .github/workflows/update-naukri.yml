@@ -2,8 +2,8 @@ name: Update Naukri Profile
 
 on:
   schedule:
-    # Once every 24 hours at midnight UTC (05:30 IST).
-    - cron: "0 0 * * *"
+    # Every 30 minutes (UTC).
+    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -71,6 +71,7 @@ jobs:
           NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
           NAUKRI_STORAGE_STATE_B64: ${{ secrets.NAUKRI_STORAGE_STATE_B64 }}
+          NAUKRI_MODE: profile
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
         run: python src/main.py
 
