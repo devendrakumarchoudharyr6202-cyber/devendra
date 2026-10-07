@@ -36,10 +36,16 @@ Repo → **Settings → Secrets and variables → Actions**:
 
 | Secret | Required | What it is |
 |--------|----------|------------|
-| `NAUKRI_EMAIL` | yes | Naukri login email |
-| `NAUKRI_PASSWORD` | yes | Naukri password |
-| `NAUKRI_STORAGE_STATE_B64` | **strongly recommended** | base64 session cookies |
+| `NAUKRI_EMAIL` | With password login | Naukri login email |
+| `NAUKRI_PASSWORD` | With email login | Naukri password |
+| `NAUKRI_STORAGE_STATE_B64` | Either this or the email/password pair | Base64 authenticated browser session; refresh it when expired |
 | `RESUME_B64` | optional | base64 of resume.pdf if not in repo |
+
+Add these under **Settings → Secrets and variables → Actions**. Never put
+credentials or session data in workflow files or commit them to the repository.
+The workflows validate that either the email/password pair or session secret is
+configured before installing dependencies. If a session secret has expired,
+refresh it or configure the email/password pair as a fallback.
 
 ### 3. Capture a login session (recommended)
 

@@ -193,6 +193,13 @@ class NaukriAgent:
             log.info("Already logged in via session")
             return
 
+        if not self.email or not self.password:
+            raise RuntimeError(
+                "Saved Naukri session is missing or expired. Refresh "
+                "NAUKRI_STORAGE_STATE_B64/storage_state.json, or configure "
+                "NAUKRI_EMAIL and NAUKRI_PASSWORD."
+            )
+
         page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=90000)
         page.wait_for_timeout(2000)
         self._assert_not_blocked(page)

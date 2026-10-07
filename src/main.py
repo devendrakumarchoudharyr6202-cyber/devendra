@@ -45,7 +45,7 @@ def _profile_skill_pool(cfg: dict, live_skills: list[str] | None = None) -> list
 
 
 def run_apply_only(cfg: dict) -> dict:
-    email, password = credentials()
+    email, password = credentials(allow_session=True)
     agent = NaukriAgent(cfg, email, password)
     job_cfg = cfg.get("job_apply") or {}
     min_match = float(job_cfg.get("min_skill_match", 0.50))
@@ -77,7 +77,6 @@ def run_apply_only(cfg: dict) -> dict:
                 dry_run=agent.dry_run,
                 search_queries=job_cfg.get("search_queries"),
                 experience_years=int(cfg.get("experience_years", 6)),
-                min_ctc_lpa=float(job_cfg.get("min_ctc_lpa", 30)),
                 max_age_hours=int(job_cfg.get("max_posting_age_hours", 24)),
             )
             agent._save_storage()
@@ -102,11 +101,11 @@ def main() -> int:
     )
     args = parser.parse_args()
     cfg = load_config()
-    email, password = credentials()
 
     out: dict = {"mode": args.mode}
 
     if args.mode in ("profile", "both"):
+        email, password = credentials(allow_session=True)
         agent = NaukriAgent(cfg, email, password)
         out["profile"] = agent.run()
 

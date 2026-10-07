@@ -3,19 +3,38 @@
 target_role: "Senior Full Stack Developer"
 experience_years: 6
 
-# Keep the listed profile skills stable; only rotate closely related skills.
+# Configured .NET full-stack and Angular skills for profile matching.
 core_skills:
-  - Angular 12+
   - Angular
+  - Angular 12+
   - TypeScript
+  - JavaScript ES6+
   - JavaScript
   - RxJS
   - NgRx
   - HTML5
   - CSS3
-  - Bootstrap 4
+  - SCSS
   - Angular Material
+  - Bootstrap
+  - Bootstrap 4
+  - Angular Signals
+  - Reactive Forms
+  - Angular Routing
+  - Lazy Loading
+  - Route Guards
+  - Angular HTTP Client
+  - Angular Interceptors
+  - Angular Directives
+  - Angular Pipes
+  - Standalone Components
+  - Angular Dependency Injection
+  - Change Detection
+  - OnPush Strategy
+  - Dynamic Components
+  - REST API Integration
   - C#
+  - .NET
   - .NET 6
   - .NET 7
   - .NET 8
@@ -23,40 +42,102 @@ core_skills:
   - ASP.NET Core
   - ASP.NET Core Web API
   - RESTful APIs
-  - LINQ
   - Entity Framework Core
-  - SQL Server
-  - Microservices
-  - REST API Integration
-  - Authentication & Authorization
+  - LINQ
+  - Dapper
+  - Dependency Injection
+  - Middleware
+  - Authentication
+  - Authorization
   - JWT
-  - SOLID Principles
-  - Unit Testing
+  - ASP.NET Core Identity
+  - Role-Based Access Control
+  - Exception Handling
+  - Logging
+  - API Versioning
   - Swagger
-  - Postman
+  - OpenAPI
+  - Microsoft SQL Server
+  - SQL Server
+  - T-SQL
+  - Stored Procedures
+  - Database Views
+  - Database Functions
+  - Database Triggers
+  - SQL Joins
+  - Database Indexing
+  - Query Optimization
+  - Database Transactions
+  - Database Normalization
+  - Database Migrations
+  - Clean Architecture
+  - Layered Architecture
+  - Microservices
+  - MVC Architecture
+  - REST Architecture
+  - SOLID Principles
+  - Design Patterns
+  - Repository Pattern
+  - Unit of Work Pattern
+  - Event-Driven Architecture
+  - JWT Authentication
+  - OAuth 2.0
+  - OpenID Connect
+  - Role-Based Authorization
+  - CORS
+  - HTTPS
+  - XSS Prevention
+  - CSRF Protection
+  - API Security
+  - Password Hashing
+  - Microsoft Azure
+  - Azure App Service
+  - Azure SQL Database
+  - Azure Storage
+  - Azure Functions
+  - Azure Key Vault
+  - Application Insights
+  - Azure DevOps
+  - CI/CD Pipelines
+  - Docker
+  - Kubernetes
+  - Redis
+  - RabbitMQ
+  - Azure Service Bus
+  - SignalR
+  - Background Services
+  - Caching
+  - Distributed Systems
+  - API Gateway
+  - Health Checks
+  - Rate Limiting
   - Git
   - GitHub
+  - GitLab
+  - Visual Studio
   - Visual Studio Code
+  - SQL Server Management Studio
+  - Jira
+  - npm
+  - Angular CLI
+  - Performance Optimization
+  - Responsive Web Design
+  - Web Accessibility
+  - Progressive Web Apps
+  - PWA
+  - Containerization
+  - Cloud Deployment
+  - CI/CD
+  - Code Review
+  - Debugging
+  - Logging and Monitoring
+  - Scalable Application Development
 
-rotate_skills:
-  - REST APIs
-  - REST API
-  - .NET Full Stack Development
-  - Angular Development
-  - Full Stack Development
-  - Web Application Development
-  - Frontend Development
-  - Backend Development
-  - ASP.NET Web API
-  - Entity Framework
-  - SQL
-  - HTML
-  - CSS
-  - Bootstrap
+rotate_skills: []
 
 skill_policy:
   min_total: 25
-  max_total: 33
+  max_total: 150
   add_per_run: 1
   remove_per_run: 1
   protect_core: true
@@ -73,27 +154,27 @@ summary_variants:
     TypeScript, JavaScript, C#, .NET Core, ASP.NET Core Web API, SQL Server,
     REST APIs, and modern web application development. Skilled in RxJS, NgRx,
     Entity Framework Core, LINQ, microservices, JWT authentication and
-    authorization, and SOLID principles. Experienced with unit testing,
-    Swagger, Postman, Git, GitHub, and Visual Studio Code.
+    authorization, and SOLID principles. Experienced with Swagger, Git,
+    GitHub, and Visual Studio Code.
   - |
     Senior Full Stack Developer with 6+ years of experience building modern web
     applications using Angular 12+, TypeScript, JavaScript, C#, and .NET.
     Experienced in ASP.NET Core Web API, RESTful API integration, SQL Server,
     Entity Framework Core, LINQ, RxJS, and NgRx. Familiar with microservices,
-    JWT authentication and authorization, SOLID principles, unit testing,
-    Swagger, Postman, Git, and GitHub.
+    JWT authentication and authorization, SOLID principles, Swagger, Git, and
+    GitHub.
   - |
     Full Stack Developer with 6+ years of experience across Angular frontend
     development and C#/.NET backend development. Core technologies include
     Angular, TypeScript, JavaScript, RxJS, NgRx, ASP.NET Core Web API, .NET 6/7/8,
     SQL Server, and Entity Framework Core. Works with REST APIs, microservices,
-    authentication and authorization, JWT, SOLID principles, and unit testing.
+    authentication and authorization, JWT, and SOLID principles.
   - |
     Senior Software Engineer with 6+ years of experience in modern web
     application development using Angular, TypeScript, JavaScript, C#, .NET
     Core, ASP.NET Core Web API, and SQL Server. Skilled in REST API integration,
     Entity Framework Core, LINQ, RxJS, NgRx, and microservices, with experience
-    using Swagger, Postman, Git, GitHub, and Visual Studio Code.
+    using Swagger, Git, GitHub, and Visual Studio Code.
 
 target_job_titles:
   - Senior Angular Developer
@@ -113,18 +194,13 @@ job_apply:
   enabled: true
   min_skill_match: 0.60
   max_apply_per_run: 999
-  min_ctc_lpa: 30
   max_posting_age_hours: 24
   source: recommended_plus_search
   search_queries:
-    - "Senior Angular Developer"
-    - "Angular Developer TypeScript RxJS NgRx"
-    - "Senior Frontend Developer Angular"
-    - "Senior Full Stack Developer Angular .NET"
-    - ".NET Full Stack Developer ASP.NET Core"
-    - "Angular .NET Developer"
-    - "Senior Software Engineer Angular C#"
-    - "ASP.NET Core Web API SQL Server"
+    - ".NET Full Stack Developer Angular"
+    - "Dot Net Full Stack Developer Angular"
+    - "Angular .NET Full Stack Engineer"
+    - "Fullstack Angular ASP.NET Core"
 
 behavior:
   headless: true

@@ -9,7 +9,7 @@ from urllib.parse import quote_plus
 
 from playwright.sync_api import Page
 
-from job_matcher import age_to_hours, experience_includes_years, max_ctc_lpa, skill_match_ratio
+from job_matcher import age_to_hours, experience_includes_years, skill_match_ratio
 
 log = logging.getLogger("naukri.jobs")
 
@@ -17,14 +17,10 @@ RECOMMENDED_URL = "https://www.naukri.com/mnjuser/recommendedjobs"
 
 # Freshness-oriented searches aligned to the configured Angular/.NET profile
 SEARCH_QUERIES = [
-    "Senior Angular Developer",
-    "Angular Developer TypeScript RxJS NgRx",
-    "Senior Frontend Developer Angular",
-    "Senior Full Stack Developer Angular .NET",
-    ".NET Full Stack Developer ASP.NET Core",
-    "Angular .NET Developer",
-    "Senior Software Engineer Angular C#",
-    "ASP.NET Core Web API SQL Server",
+    ".NET Full Stack Developer Angular",
+    "Dot Net Full Stack Developer Angular",
+    "Angular .NET Full Stack Engineer",
+    "Fullstack Angular ASP.NET Core",
 ]
 
 
@@ -137,6 +133,17 @@ def rank_jobs(
     return ranked
 
 
+def _matches_angular_dotnet_full_stack_title(title: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
+    has_angular = "angular" in normalized.split()
+    has_dotnet = any(
+        token in normalized.split()
+        for token in ("dotnet", "net")
+    )
+    has_full_stack = "full stack" in normalized or "fullstack" in normalized
+    return has_angular and has_dotnet and has_full_stack
+
+
 def _apply_on_detail(page: Page, href: str, dry_run: bool) -> tuple[bool, str]:
     if not href:
         return False, "Job detail URL unavailable"
@@ -190,7 +197,6 @@ def apply_jobs(
     dry_run: bool = False,
     search_queries: list[str] | None = None,
     experience_years: int = 6,
-    min_ctc_lpa: float = 30.0,
     max_age_hours: int = 24,
 ) -> dict[str, Any]:
     raw: list[dict[str, Any]] = []
@@ -226,6 +232,9 @@ def apply_jobs(
         def skip(reason: str) -> None:
             skipped.append({"title": title, "company": company, "reason": reason})
 
+        if not _matches_angular_dotnet_full_stack_title(title):
+            skip("Title is not explicitly Angular + .NET + Full Stack")
+            continue
         ratio = skill_match_ratio(item.get("required_skills") or [], profile_skills)
         if ratio + 1e-9 < min_match:
             skip(f"Skill match below {min_match:.0%}")
@@ -238,13 +247,6 @@ def apply_jobs(
         if not experience_includes_years(item.get("experience_text") or "", experience_years):
             skip(f"Experience requirement does not clearly include {experience_years}+ years")
             continue
-        salary_max = max_ctc_lpa(item.get("salary_text") or "")
-        if salary_max is None:
-            skip("CTC not clearly disclosed")
-            continue
-        if salary_max <= min_ctc_lpa:
-            skip(f"Maximum CTC is not above ₹{min_ctc_lpa:g} LPA")
-            continue
         if item.get("already_applied"):
             skip("Already applied")
             continue
@@ -252,7 +254,6 @@ def apply_jobs(
             **item,
             "match_ratio": ratio,
             "age_hours": age_hours,
-            "max_ctc_lpa": salary_max,
         })
 
     eligible.sort(key=lambda item: (item["age_hours"], -item["match_ratio"]))
@@ -266,12 +267,11 @@ def apply_jobs(
     )
     for job in selected:
         log.info(
-            "  → %.0f%% | %s | %s @ %s | CTC max ₹%.1f LPA",
+            "  → %.0f%% | %s | %s @ %s",
             job["match_ratio"] * 100,
             job["age_text"],
             job["title"],
             job["company"],
-            job["max_ctc_lpa"],
         )
 
     submitted: list[dict[str, str]] = []
@@ -287,7 +287,6 @@ def apply_jobs(
                 "company": j.get("company", ""),
                 "age": j.get("age_text", ""),
                 "match": round(j["match_ratio"], 3),
-                "ctc_max_lpa": j["max_ctc_lpa"],
                 "skills": j.get("required_skills", []),
             }
             for j in selected
@@ -302,7 +301,7 @@ def apply_jobs(
     }
 
     if not selected:
-        result["message"] = "No jobs met all skill, posting-age, experience, and salary criteria."
+        result["message"] = "No jobs met all skill, posting-age, and experience criteria."
         return result
 
     for job in selected:
