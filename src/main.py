@@ -3,6 +3,7 @@
 
 Modes:
   profile  — refresh headline/summary/key skills/resume
+  resume   — upload the resume only
   apply    — apply to matching recommended jobs
   both     — profile then apply (default for scheduled full runs)
 """
@@ -96,7 +97,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Naukri profile + job apply agent")
     parser.add_argument(
         "--mode",
-        choices=("profile", "apply", "both"),
+        choices=("profile", "resume", "apply", "both"),
         default=os.getenv("NAUKRI_MODE", "both"),
     )
     args = parser.parse_args()
@@ -108,6 +109,11 @@ def main() -> int:
         email, password = credentials(allow_session=True)
         agent = NaukriAgent(cfg, email, password)
         out["profile"] = agent.run()
+
+    if args.mode == "resume":
+        email, password = credentials(allow_session=True)
+        agent = NaukriAgent(cfg, email, password)
+        out["resume"] = agent.run_resume_upload()
 
     if args.mode in ("apply", "both"):
         out["apply"] = run_apply_only(cfg)

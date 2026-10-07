@@ -92,6 +92,37 @@ class NaukriAgent:
             finally:
                 browser.close()
 
+    def run_resume_upload(self) -> dict[str, Any]:
+        with sync_playwright() as p:
+            browser, page = self._launch(p)
+            try:
+                self._assert_not_blocked(page, soft=True)
+                self._login(page)
+                page.goto(PROFILE_URL, wait_until="domcontentloaded", timeout=90000)
+                page.wait_for_timeout(3000)
+                self._assert_not_blocked(page)
+
+                uploaded = self._reupload_resume(page)
+                if not uploaded and not self.dry_run:
+                    raise RuntimeError("Resume upload did not complete")
+
+                self._save_storage()
+                self._screenshot(page, "resume_done.png")
+                result = {
+                    "resume_uploaded": uploaded,
+                    "dry_run": self.dry_run,
+                }
+                log.info("Resume-only run complete: %s", result)
+                return result
+            except Exception:
+                try:
+                    self._screenshot(page, "resume_failure.png")
+                except Exception:
+                    pass
+                raise
+            finally:
+                browser.close()
+
     def _launch(self, p: Playwright) -> tuple[Browser, Page]:
         launch_kwargs: dict[str, Any] = {
             "headless": self.headless,

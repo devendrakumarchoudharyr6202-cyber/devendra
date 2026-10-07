@@ -1,19 +1,18 @@
 # Naukri Profile Agent (GitHub Actions)
 
-The GitHub Actions workflows update the Naukri profile and apply to matching
-jobs using the settings in `config/profile.yaml`. The profile configuration is
-for a Senior Full Stack Developer with 6+ years of experience in Angular and
-C#/.NET. Add your own current résumé as `assets/resume.pdf` before enabling
-resume uploads.
+The GitHub Actions workflows upload the latest resume to Naukri hourly between
+08:00 and 20:00 India time and apply to matching jobs using the settings in
+`config/profile.yaml`. The profile configuration is for a Senior Full Stack
+Developer with 6+ years of experience in Angular and C#/.NET.
 
 ## How it works
 
 ```text
-GitHub cron (profile refresh every 30 minutes / job applications every 8 hours)
+GitHub cron (resume upload hourly 08:00–20:00 India time / job applications every 8 hours)
    → checkout repo
    → Playwright (Chromium)
    → login via session cookie secret (preferred) or email/password
-   → update summary + skills + resume
+   → upload resume only during the hourly profile workflow
    → upload screenshots as artifacts
 ```
 
@@ -98,9 +97,10 @@ preserved unless needed to enforce `max_total`.
 ### 6. Run it
 
 - **Actions → Update Naukri Profile → Run workflow** (manual test)
-- Or wait for the 30-minute cron (`*/30 * * * *` UTC)
+- Or wait for the hourly schedule: 08:00–20:00 India time (`30 2-14 * * *` UTC)
 
-Use `dry_run: true` on manual runs first to verify selectors without saving.
+The hourly workflow only uploads the resume; it does not change headline,
+summary, or skills.
 
 ## Job auto-apply (every 8 hours)
 
@@ -120,7 +120,7 @@ Local loop is preferred (Akamai often blocks cloud IPs).
 
 ## Skill rotation policy
 
-Each hour the planner:
+Each profile-mode run uses the planner to:
 
 1. keeps all `core_skills`
 2. removes up to `remove_per_run` non-core skills from the rotate pool

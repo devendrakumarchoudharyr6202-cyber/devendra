@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from naukri_client import NaukriAgent
 
@@ -107,3 +107,34 @@ class StorageStateSecretTests(unittest.TestCase):
             RuntimeError, "NAUKRI_STORAGE_STATE_GZ_B64"
         ):
             self.agent._load_storage_state()
+
+
+class ResumeOnlyRunTests(unittest.TestCase):
+    def test_resume_run_does_not_edit_other_profile_fields(self):
+        agent = object.__new__(NaukriAgent)
+        agent.dry_run = False
+        browser = MagicMock()
+        page = MagicMock()
+        playwright_context = MagicMock()
+        playwright_context.__enter__.return_value = object()
+
+        with (
+            patch("naukri_client.sync_playwright", return_value=playwright_context),
+            patch.object(agent, "_launch", return_value=(browser, page)),
+            patch.object(agent, "_assert_not_blocked"),
+            patch.object(agent, "_login"),
+            patch.object(agent, "_reupload_resume", return_value=True) as upload,
+            patch.object(agent, "_save_storage"),
+            patch.object(agent, "_screenshot"),
+            patch.object(agent, "_update_headline") as headline,
+            patch.object(agent, "_update_summary") as summary,
+            patch.object(agent, "_update_skills") as skills,
+        ):
+            result = agent.run_resume_upload()
+
+        self.assertEqual(result, {"resume_uploaded": True, "dry_run": False})
+        upload.assert_called_once_with(page)
+        headline.assert_not_called()
+        summary.assert_not_called()
+        skills.assert_not_called()
+        browser.close.assert_called_once()

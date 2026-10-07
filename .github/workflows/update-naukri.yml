@@ -2,12 +2,12 @@ name: Update Naukri Profile
 
 on:
   schedule:
-    # Every 30 minutes (UTC).
-    - cron: "*/30 * * * *"
+    # Hourly from 08:00 through 20:00 India time (02:30 through 14:30 UTC).
+    - cron: "30 2-14 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Plan changes but skip Save/Upload"
+        description: "Skip uploading the resume"
         type: boolean
         default: false
 
@@ -75,7 +75,7 @@ jobs:
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
           NAUKRI_STORAGE_STATE_GZ_B64: ${{ secrets.NAUKRI_STORAGE_STATE_GZ_B64 }}
           NAUKRI_STORAGE_STATE_B64: ${{ secrets.NAUKRI_STORAGE_STATE_B64 }}
-          NAUKRI_MODE: profile
+          NAUKRI_MODE: resume
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
         run: python src/main.py
 
