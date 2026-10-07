@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -109,17 +110,21 @@ class NaukriAgent:
             browser = p.chromium.launch(**launch_kwargs)
 
         storage = self._load_storage_state()
-        context = browser.new_context(
-            storage_state=storage,
-            viewport={"width": 1366, "height": 768},
-            locale="en-IN",
-            timezone_id="Asia/Kolkata",
-            user_agent=(
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-            ),
-            extra_http_headers={"Accept-Language": "en-IN,en;q=0.9"},
-        )
+        try:
+            context = browser.new_context(
+                storage_state=storage,
+                viewport={"width": 1366, "height": 768},
+                locale="en-IN",
+                timezone_id="Asia/Kolkata",
+                user_agent=(
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                ),
+                extra_http_headers={"Accept-Language": "en-IN,en;q=0.9"},
+            )
+        finally:
+            if storage and Path(storage).resolve() != STORAGE_PATH.resolve():
+                Path(storage).unlink(missing_ok=True)
         context.add_init_script(STEALTH_JS)
         page = context.new_page()
         page.set_default_timeout(self.timeout)
@@ -177,10 +182,16 @@ class NaukriAgent:
                 f"{source} decoded, but is not a Playwright storage state. "
                 "Re-create the secret from storage_state.json."
             )
-        path = ARTIFACTS / "storage_state.from_secret.json"
-        path.write_text(json.dumps(state), encoding="utf-8")
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            suffix=".json",
+            prefix="naukri-storage-",
+            delete=False,
+        ) as state_file:
+            json.dump(state, state_file)
         log.info("Loaded storage state from %s", source)
-        return str(path)
+        return state_file.name
 
     def _save_storage(self) -> None:
         if self._context is None:

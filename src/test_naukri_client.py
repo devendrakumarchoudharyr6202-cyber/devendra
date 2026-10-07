@@ -19,7 +19,9 @@ from set_session_secret import encode_storage_state  # noqa: E402
 class StorageStateSecretTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
-        self.artifacts = Path(self.temp_dir.name)
+        self.temp_root = Path(self.temp_dir.name)
+        self.artifacts = self.temp_root / "artifacts"
+        self.artifacts.mkdir()
         self.agent = object.__new__(NaukriAgent)
         self.state = {
             "cookies": [{"name": "session", "value": "private"}],
@@ -31,8 +33,13 @@ class StorageStateSecretTests(unittest.TestCase):
         os.environ.pop("NAUKRI_STORAGE_STATE_B64", None)
         self.artifacts_patch = patch("naukri_client.ARTIFACTS", self.artifacts)
         self.artifacts_patch.start()
+        self.tempfile_patch = patch(
+            "naukri_client.tempfile.tempdir", str(self.temp_root)
+        )
+        self.tempfile_patch.start()
 
     def tearDown(self):
+        self.tempfile_patch.stop()
         self.artifacts_patch.stop()
         self.env.stop()
         self.temp_dir.cleanup()
@@ -46,6 +53,7 @@ class StorageStateSecretTests(unittest.TestCase):
         result = self.agent._load_storage_state()
 
         self.assertIsNotNone(result)
+        self.assertNotEqual(Path(result).parent, self.artifacts)
         self.assertEqual(
             json.loads(Path(result).read_text(encoding="utf-8")),
             self.state,
@@ -86,6 +94,7 @@ class StorageStateSecretTests(unittest.TestCase):
         result = self.agent._load_storage_state()
 
         self.assertIsNotNone(result)
+        self.assertNotEqual(Path(result).parent, self.artifacts)
         self.assertEqual(
             json.loads(Path(result).read_text(encoding="utf-8")),
             self.state,
