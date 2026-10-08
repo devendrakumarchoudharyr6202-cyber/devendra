@@ -9,7 +9,7 @@ Developer with 6+ years of experience in Angular and C#/.NET.
 ## How it works
 
 ```text
-GitHub cron (resume upload hourly 08:00–21:00 India time / job applications every 8 hours)
+GitHub cron (profile update hourly 08:00–21:00 India time with a 15-minute retry / job applications every 8 hours)
    → checkout repo
    → Playwright (Chromium)
    → login via session cookie secret (preferred) or email/password
@@ -98,7 +98,7 @@ preserved unless needed to enforce `max_total`.
 ### 6. Run it
 
 - **Actions → Update Naukri Profile → Run workflow** (manual test)
-- Or wait for the hourly schedule: 08:00–21:00 India time (`30 2-15 * * *` UTC)
+- Or wait for the hourly schedule: 08:00–21:00 India time, with a 15-minute retry (`30,45 2-15 * * *` UTC)
 
 The hourly workflow removes the opening "Full Stack Developer" phrase from the
 configured profile summary, verifies that removal, adds the phrase back, and
@@ -137,4 +137,4 @@ Same UTC hour → same plan (safe retries).
 - Naukri UI changes often; if a step skips, check Action artifacts (`summary_skip.png`, `skills_skip.png`, `failure.png`) and adjust selectors in `src/naukri_client.py`.
 - Automated profile updates and job applications may be subject to Naukri terms; review each workflow and keep profile claims truthful.
 - Prefer session cookies over password login in CI.
-- Cron is UTC. Profile refresh is scheduled every 30 minutes; job applications run every 8 hours.
+- Cron is UTC. The profile workflow checks at the start of each India-time hour and retries 15 minutes later, but performs at most one successful profile update per hour. Job applications run every 8 hours.

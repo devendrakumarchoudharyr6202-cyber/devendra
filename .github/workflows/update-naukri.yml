@@ -2,8 +2,8 @@ name: Update Naukri Profile
 
 on:
   schedule:
-    # Hourly from 08:00 through 21:00 India time (02:30 through 15:30 UTC).
-    - cron: "30 2-15 * * *"
+    # Try at the start of each India-time hour, then retry 15 minutes later.
+    - cron: "30,45 2-15 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: naukri-profile-update
@@ -24,10 +25,47 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      - name: Check whether this India-hour update is needed
+        id: hour_guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" != "schedule" ]]; then
+            echo "Manual run requested; proceeding"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          local_hour="$(TZ=Asia/Kolkata date +%H)"
+          if (( 10#$local_hour < 8 || 10#$local_hour > 21 )); then
+            echo "Outside the 08:00–21:00 India-time update window"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          current_hour="$(TZ=Asia/Kolkata date +'%Y-%m-%d-%H')"
+          last_success="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/update-naukri.yml/runs?branch=main&status=success&per_page=100" \
+            --jq '.workflow_runs[0].run_started_at')"
+
+          if [[ -n "$last_success" && "$last_success" != "null" ]]; then
+            last_success_hour="$(TZ=Asia/Kolkata date -d "$last_success" +'%Y-%m-%d-%H')"
+            if [[ "$last_success_hour" == "$current_hour" ]]; then
+              echo "A successful profile update already ran this India-time hour"
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          echo "No successful update yet this India-time hour; proceeding"
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
+        if: steps.hour_guard.outputs.should_run == 'true'
         uses: actions/checkout@v4
 
       - name: Validate Naukri authentication
+        if: steps.hour_guard.outputs.should_run == 'true'
         env:
           NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
@@ -46,18 +84,21 @@ jobs:
           fi
 
       - name: Set up Python
+        if: steps.hour_guard.outputs.should_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
 
       - name: Install dependencies
+        if: steps.hour_guard.outputs.should_run == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           playwright install --with-deps chromium
 
       - name: Restore resume from secret (optional)
+        if: steps.hour_guard.outputs.should_run == 'true'
         env:
           RESUME_B64: ${{ secrets.RESUME_B64 }}
         run: |
@@ -70,6 +111,7 @@ jobs:
           fi
 
       - name: Run Naukri agent
+        if: steps.hour_guard.outputs.should_run == 'true'
         env:
           NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
@@ -80,7 +122,7 @@ jobs:
         run: python src/main.py
 
       - name: Upload artifacts on failure/success
-        if: always()
+        if: always() && steps.hour_guard.outputs.should_run == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: naukri-run-${{ github.run_id }}
