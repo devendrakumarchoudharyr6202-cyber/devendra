@@ -98,20 +98,15 @@ preserved unless needed to enforce `max_total`.
 ### 6. Run it
 
 - **Actions → Update Naukri Profile → Run workflow** (manual test)
-- Or wait for the hourly schedule: 08:00–20:00 India time (`30 2-14 * * *` UTC)
+- Or wait for the hourly GitHub schedule: 08:00–20:00 India time, with a retry
+  15 minutes later if no active or successful run exists in that IST hour.
 
 The hourly workflow removes the opening "Full Stack Developer" phrase from the
 configured profile summary, verifies that removal, adds the phrase back, and
 uploads the resume; it does not change the headline or key skills. Scheduled
-runs happen automatically and do not require a prompt.
-
-Windows Task Scheduler also runs `scripts/dispatch_naukri_if_needed.ps1` at
-10 minutes past each hour from 08:00 through 20:00 IST. It dispatches the GitHub
-workflow only if no successful or active update exists in that India-time hour,
-providing a local fallback when GitHub misses its cron trigger. This fallback
-requires this Windows account to be signed in and the PC to be powered on or
-asleep with wake timers enabled, with an internet connection and authenticated
-GitHub CLI. It cannot run while the PC is shut down or signed out.
+runs happen automatically and do not require a prompt. Automatic updates use
+GitHub's `schedule` event; **Run workflow** and explicit `gh workflow run`
+commands create `workflow_dispatch` events and appear as manually started.
 
 ## Job auto-apply (every 8 hours)
 
