@@ -105,6 +105,14 @@ configured profile summary, verifies that removal, adds the phrase back, and
 uploads the resume; it does not change the headline or key skills. Scheduled
 runs happen automatically and do not require a prompt.
 
+Windows Task Scheduler also runs `scripts/dispatch_naukri_if_needed.ps1` at
+10 minutes past each hour from 08:00 through 20:00 IST. It dispatches the GitHub
+workflow only if no successful or active update exists in that India-time hour,
+providing a local fallback when GitHub misses its cron trigger. This fallback
+requires this Windows account to be signed in and the PC to be powered on or
+asleep with wake timers enabled, with an internet connection and authenticated
+GitHub CLI. It cannot run while the PC is shut down or signed out.
+
 ## Job auto-apply (every 8 hours)
 
 ```bash
