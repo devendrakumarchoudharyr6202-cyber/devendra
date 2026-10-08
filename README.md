@@ -1,7 +1,7 @@
 # Naukri Profile Agent (GitHub Actions)
 
 The GitHub Actions workflows update the profile summary and upload the latest
-resume to Naukri hourly between 08:00 and 20:00 India time and apply to matching
+resume to Naukri hourly between 08:00 and 21:00 India time and apply to matching
 jobs using the settings in
 `config/profile.yaml`. The profile configuration is for a Senior Full Stack
 Developer with 6+ years of experience in Angular and C#/.NET.
@@ -9,7 +9,7 @@ Developer with 6+ years of experience in Angular and C#/.NET.
 ## How it works
 
 ```text
-GitHub cron (resume upload hourly 08:00–20:00 India time / job applications every 8 hours)
+GitHub cron (resume upload hourly 08:00–21:00 India time / job applications every 8 hours)
    → checkout repo
    → Playwright (Chromium)
    → login via session cookie secret (preferred) or email/password
@@ -98,7 +98,7 @@ preserved unless needed to enforce `max_total`.
 ### 6. Run it
 
 - **Actions → Update Naukri Profile → Run workflow** (manual test)
-- Or wait for the hourly schedule: 08:00–20:00 India time (`30 2-14 * * *` UTC)
+- Or wait for the hourly schedule: 08:00–21:00 India time (`30 2-15 * * *` UTC)
 
 The hourly workflow removes the opening "Full Stack Developer" phrase from the
 configured profile summary, verifies that removal, adds the phrase back, and

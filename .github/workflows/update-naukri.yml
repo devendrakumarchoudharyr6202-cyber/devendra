@@ -2,8 +2,8 @@ name: Update Naukri Profile
 
 on:
   schedule:
-    # Hourly from 08:00 through 20:00 India time (02:30 through 14:30 UTC).
-    - cron: "30 2-14 * * *"
+    # Hourly from 08:00 through 21:00 India time (02:30 through 15:30 UTC).
+    - cron: "30 2-15 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
