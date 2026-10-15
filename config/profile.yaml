@@ -3,135 +3,34 @@
 target_role: "Senior Full Stack Developer"
 experience_years: 6
 
-# Configured .NET full-stack and Angular skills for profile matching.
+# Python, data analysis, visualization, Excel, and web skills for profile matching.
 core_skills:
-  - Angular
-  - Angular 12+
-  - TypeScript
-  - JavaScript ES6+
-  - JavaScript
-  - RxJS
-  - NgRx
-  - HTML5
-  - CSS3
-  - SCSS
-  - Angular Material
-  - Bootstrap
-  - Bootstrap 4
-  - Angular Signals
-  - Reactive Forms
-  - Angular Routing
-  - Lazy Loading
-  - Route Guards
-  - Angular HTTP Client
-  - Angular Interceptors
-  - Angular Directives
-  - Angular Pipes
-  - Standalone Components
-  - Angular Dependency Injection
-  - Change Detection
-  - OnPush Strategy
-  - Dynamic Components
-  - REST API Integration
-  - C#
-  - .NET
-  - .NET 6
-  - .NET 7
-  - .NET 8
-  - .NET Core
-  - ASP.NET Core
-  - ASP.NET Core Web API
-  - RESTful APIs
-  - Entity Framework Core
-  - LINQ
-  - Dapper
-  - Dependency Injection
-  - Middleware
-  - Authentication
-  - Authorization
-  - JWT
-  - ASP.NET Core Identity
-  - Role-Based Access Control
-  - Exception Handling
-  - Logging
-  - API Versioning
-  - Swagger
-  - OpenAPI
-  - Microsoft SQL Server
-  - SQL Server
-  - T-SQL
-  - Stored Procedures
-  - Database Views
-  - Database Functions
-  - Database Triggers
-  - SQL Joins
-  - Database Indexing
-  - Query Optimization
-  - Database Transactions
-  - Database Normalization
-  - Database Migrations
-  - Clean Architecture
-  - Layered Architecture
-  - Microservices
-  - MVC Architecture
-  - REST Architecture
-  - SOLID Principles
-  - Design Patterns
-  - Repository Pattern
-  - Unit of Work Pattern
-  - Event-Driven Architecture
-  - JWT Authentication
-  - OAuth 2.0
-  - OpenID Connect
-  - Role-Based Authorization
-  - CORS
-  - HTTPS
-  - XSS Prevention
-  - CSRF Protection
-  - API Security
-  - Password Hashing
-  - Microsoft Azure
-  - Azure App Service
-  - Azure SQL Database
-  - Azure Storage
-  - Azure Functions
-  - Azure Key Vault
-  - Application Insights
-  - Azure DevOps
-  - CI/CD Pipelines
-  - Docker
-  - Kubernetes
-  - Redis
-  - RabbitMQ
-  - Azure Service Bus
-  - SignalR
-  - Background Services
-  - Caching
-  - Distributed Systems
-  - API Gateway
-  - Health Checks
-  - Rate Limiting
-  - Git
-  - GitHub
-  - GitLab
-  - Visual Studio
-  - Visual Studio Code
-  - SQL Server Management Studio
-  - Jira
-  - npm
-  - Angular CLI
-  - Performance Optimization
-  - Responsive Web Design
-  - Web Accessibility
-  - Progressive Web Apps
-  - PWA
-  - Containerization
-  - Cloud Deployment
-  - CI/CD
-  - Code Review
-  - Debugging
-  - Logging and Monitoring
-  - Scalable Application Development
+  - Python
+  - SQL
+  - MySQL
+  - Data Cleaning
+  - Data Transformation
+  - Exploratory Data Analysis (EDA)
+  - Microsoft Power BI
+  - Matplotlib
+  - Seaborn
+  - Pandas
+  - NumPy
+  - Microsoft Excel
+  - VLOOKUP
+  - XLOOKUP
+  - IF
+  - SUMIF
+  - COUNTIF
+  - Pivot Tables
+  - Charts
+  - Interactive Dashboards
+  - KPI Reporting
+  - Data Visualization
+  - HTML
+  - CSS
+  - Jupyter Notebook
+  - VS Code
 
 rotate_skills: []
 
