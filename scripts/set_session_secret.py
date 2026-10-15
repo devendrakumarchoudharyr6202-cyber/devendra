@@ -11,13 +11,49 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 STORAGE_PATH = ROOT / "storage_state.json"
-REPOSITORY = "manojfor4u/auto-apply"
 SECRET_NAME = "NAUKRI_STORAGE_STATE_GZ_B64"
 GITHUB_SECRET_LIMIT = 48 * 1024
 CACHE_PREFIX = "srp_simjobs_reco_wdgt_"
+
+
+def repository_from_origin(remote_url: str) -> str:
+    if remote_url.startswith("git@"):
+        host, separator, repo_path = remote_url.partition(":")
+        if not separator or host.lower() != "git@github.com":
+            raise SystemExit("The origin remote must point to a GitHub repository.")
+    else:
+        parsed = urlsplit(remote_url)
+        if parsed.hostname != "github.com":
+            raise SystemExit("The origin remote must point to a GitHub repository.")
+        repo_path = parsed.path
+
+    repo_path = repo_path.strip("/")
+    if repo_path.endswith(".git"):
+        repo_path = repo_path[:-4]
+    parts = repo_path.split("/")
+    if len(parts) != 2 or not all(parts):
+        raise SystemExit("Could not determine owner/repository from the origin remote.")
+    return "/".join(parts)
+
+
+def get_repository() -> str:
+    remote = subprocess.run(
+        ["git", "remote", "get-url", "origin"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if remote.returncode or not remote.stdout.strip():
+        raise SystemExit(
+            "Could not read the GitHub origin remote. Configure `git remote "
+            "add origin <GitHub repository URL>` and retry."
+        )
+    return repository_from_origin(remote.stdout.strip())
 
 
 def encode_storage_state(path: Path = STORAGE_PATH) -> tuple[str, int]:
@@ -72,6 +108,7 @@ def main() -> int:
             "GitHub CLI is not authenticated. Run `gh auth login`, then retry."
         )
 
+    repository = get_repository()
     encoded, compact_size = encode_storage_state()
     result = subprocess.run(
         [
@@ -80,7 +117,7 @@ def main() -> int:
             "set",
             SECRET_NAME,
             "--repo",
-            REPOSITORY,
+            repository,
             "--body",
             encoded,
         ],
@@ -95,7 +132,7 @@ def main() -> int:
         )
 
     print(
-        f"Updated {SECRET_NAME} in {REPOSITORY}. "
+        f"Updated {SECRET_NAME} in {repository}. "
         f"Filtered session JSON: {compact_size:,} bytes; "
         f"secret value: {len(encoded):,} characters."
     )

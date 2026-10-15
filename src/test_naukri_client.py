@@ -13,7 +13,33 @@ from unittest.mock import MagicMock, patch
 from naukri_client import NaukriAgent
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from set_session_secret import encode_storage_state  # noqa: E402
+from set_session_secret import (  # noqa: E402
+    encode_storage_state,
+    repository_from_origin,
+)
+
+
+class SessionSecretRepositoryTests(unittest.TestCase):
+    def test_repository_from_https_origin(self):
+        self.assertEqual(
+            repository_from_origin(
+                "https://github.com/devendrakumarchoudharyr6202-cyber/"
+                "devendra.git"
+            ),
+            "devendrakumarchoudharyr6202-cyber/devendra",
+        )
+
+    def test_repository_from_ssh_origin(self):
+        self.assertEqual(
+            repository_from_origin(
+                "git@github.com:devendrakumarchoudharyr6202-cyber/devendra.git"
+            ),
+            "devendrakumarchoudharyr6202-cyber/devendra",
+        )
+
+    def test_rejects_non_github_origin(self):
+        with self.assertRaisesRegex(SystemExit, "GitHub repository"):
+            repository_from_origin("https://example.com/owner/repo.git")
 
 
 class StorageStateSecretTests(unittest.TestCase):
