@@ -180,7 +180,7 @@ class ResumeSummaryRunTests(unittest.TestCase):
 
         page.goto.assert_called_once_with(
             "https://www.naukri.com/mnjuser/profile",
-            wait_until="domcontentloaded",
+            wait_until="commit",
             timeout=90000,
         )
 

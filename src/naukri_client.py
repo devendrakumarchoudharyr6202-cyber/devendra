@@ -59,7 +59,6 @@ class NaukriAgent:
             try:
                 self._assert_not_blocked(page, soft=True)
                 self._login(page)
-                page.goto(PROFILE_URL, wait_until="domcontentloaded", timeout=90000)
                 page.wait_for_timeout(3000)
                 self._assert_not_blocked(page)
 
@@ -98,7 +97,6 @@ class NaukriAgent:
             try:
                 self._assert_not_blocked(page, soft=True)
                 self._login(page)
-                page.goto(PROFILE_URL, wait_until="domcontentloaded", timeout=90000)
                 page.wait_for_timeout(3000)
                 self._assert_not_blocked(page)
 
@@ -323,7 +321,7 @@ class NaukriAgent:
         )
 
     def _login(self, page: Page) -> None:
-        page.goto(PROFILE_URL, wait_until="domcontentloaded", timeout=90000)
+        page.goto(PROFILE_URL, wait_until="commit", timeout=90000)
         page.wait_for_timeout(2500)
         self._assert_not_blocked(page)
         self._dismiss_overlays(page)
@@ -340,7 +338,7 @@ class NaukriAgent:
                 "NAUKRI_EMAIL and NAUKRI_PASSWORD."
             )
 
-        page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=90000)
+        page.goto(LOGIN_URL, wait_until="commit", timeout=90000)
         page.wait_for_timeout(2000)
         self._assert_not_blocked(page)
         self._dismiss_overlays(page)
@@ -388,7 +386,7 @@ class NaukriAgent:
                 timeout=180_000,
             )
 
-        page.goto(PROFILE_URL, wait_until="domcontentloaded", timeout=90000)
+        page.goto(PROFILE_URL, wait_until="commit", timeout=90000)
         page.wait_for_timeout(2500)
         self._assert_not_blocked(page)
         if not self._is_logged_in(page) and "login" in page.url.lower():
