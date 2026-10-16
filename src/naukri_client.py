@@ -108,50 +108,24 @@ class NaukriAgent:
                 uploaded = self._reupload_resume(page)
                 if not uploaded and not self.dry_run:
                     raise RuntimeError("Resume upload did not complete")
-
-                if self.dry_run:
+                try:
                     summary_updated = self._update_summary(page, summary)
-                else:
-                    phrase = "Full Stack Developer"
-                    if not summary.startswith(phrase):
-                        raise ValueError(
-                            "scheduled_summary must start with "
-                            f"{phrase!r} to run the remove-and-add update"
-                        )
-
-                    without_phrase = summary[len(phrase):].lstrip()
-                    removed = self._update_summary(
-                        page, without_phrase, ensure_absent=phrase
+                except Exception as first_error:
+                    log.warning(
+                        "Could not save the scheduled summary on the first "
+                        "attempt (%s); retrying once",
+                        first_error,
                     )
-                    if not removed:
-                        raise RuntimeError(
-                            "Could not remove the scheduled summary opening"
-                        )
-
                     try:
                         summary_updated = self._update_summary(page, summary)
-                    except Exception as add_error:
-                        log.warning(
-                            "Could not restore the scheduled summary opening "
-                            "on the first attempt (%s); retrying once",
-                            add_error,
-                        )
-                        try:
-                            summary_updated = self._update_summary(page, summary)
-                        except Exception as retry_error:
-                            raise RuntimeError(
-                                "Could not restore the scheduled summary "
-                                "opening after retry; the profile may still "
-                                "show the summary without it"
-                            ) from retry_error
-                        if not summary_updated:
-                            raise RuntimeError(
-                                "Summary restoration retry did not complete"
-                            ) from add_error
-                        log.warning(
-                            "Scheduled summary was restored successfully on "
-                            "retry"
-                        )
+                    except Exception as retry_error:
+                        raise RuntimeError(
+                            "Could not save the scheduled summary after retry"
+                        ) from retry_error
+                    if not summary_updated:
+                        raise RuntimeError(
+                            "Scheduled summary save retry did not complete"
+                        ) from first_error
 
                 if not summary_updated and not self.dry_run:
                     raise RuntimeError("Profile summary update did not complete")

@@ -1,20 +1,20 @@
 # Naukri Profile Agent (GitHub Actions)
 
-The profile workflow updates the profile summary and uploads the latest resume
-hourly between 08:00 and 20:00 India time on a self-hosted Windows runner.
-The separate GitHub Actions workflow applies to matching jobs using the settings in
-`config/profile.yaml`.
+The profile workflow updates the configured headline, summary, key skills, and
+resume, then searches and applies to suitable jobs at 09:00, 12:00, and 14:00
+India time using a self-hosted Windows runner. Job criteria and the application
+limit are defined in `config/profile.yaml`.
 
 ## How it works
 
 ```text
-GitHub cron (profile update hourly 08:00–20:00 India time / job applications every 8 hours)
+GitHub cron (09:00, 12:00, and 14:00 India time)
    → checkout repo
-   → self-hosted Windows runner for profile updates / hosted runner for job applications
+   → self-hosted Windows runner
    → Playwright (Chromium)
-   → login via session cookie secret (preferred) or email/password
-   → update the configured summary and upload the resume during the hourly workflow
-   → upload screenshots as artifacts
+   → login via the authenticated session secret
+   → update profile, search suitable jobs, and submit up to 10 applications
+   → persist application ledger and upload a run report/artifacts
 ```
 
 ## Setup (15 minutes)
@@ -36,17 +36,16 @@ Repo → **Settings → Secrets and variables → Actions**:
 
 | Secret | Required | What it is |
 |--------|----------|------------|
-| `NAUKRI_EMAIL` | Optional fallback | Naukri login email; headless Actions cannot complete OTP or captcha |
-| `NAUKRI_PASSWORD` | Optional fallback | Naukri password; headless Actions cannot complete OTP or captcha |
-| `NAUKRI_STORAGE_STATE_GZ_B64` | Recommended for OTP login | Compressed authenticated browser session; preferred for Actions secrets |
+| `NAUKRI_EMAIL` | Optional | Naukri login email for local fallback login |
+| `NAUKRI_PASSWORD` | Optional | Naukri password for local fallback login |
+| `NAUKRI_STORAGE_STATE_GZ_B64` | Required for Actions | Compressed authenticated browser session |
 | `NAUKRI_STORAGE_STATE_B64` | Alternative | Base64 authenticated browser session; refresh it when expired |
 | `RESUME_B64` | optional | base64 of resume.pdf if not in repo |
 
 Add these under **Settings → Secrets and variables → Actions**. Never put
 credentials or session data in workflow files or commit them to the repository.
-For OTP/captcha login, the GitHub Actions workflows require a captured session
-secret and stop immediately if it is missing. Email/password credentials alone
-cannot complete OTP or captcha on the headless runner.
+The GitHub Actions workflows require a captured session secret and stop
+immediately if it is missing.
 
 ### 3. Capture a login session (recommended)
 
@@ -108,8 +107,9 @@ Naukri Profile** workflow therefore uses your Windows PC as a self-hosted runner
 3. Confirm the runner shows **Idle** under **Settings → Actions → Runners**.
    Then use **Actions → Update Naukri Profile → Run workflow**.
 
-Scheduled profile updates only run while this PC is awake and the runner is
-online. The Apply Naukri Jobs workflow still uses GitHub-hosted runners.
+Scheduled profile updates and job searches only run while this PC is awake and
+the runner is online. GitHub may start scheduled workflows a few minutes later
+than the requested cron minute.
 
 ### 5. Add your résumé
 
@@ -132,58 +132,55 @@ encoded résumé into chat.
 
 ### 6. Review `config/profile.yaml`
 
-The configured `core_skills` list reflects the supplied Python, data analysis,
-visualization, Excel, and web skills. Headlines, summaries, and target job
-titles are separate settings; verify that they, the résumé, and every other
-configured profile claim are accurate before running the workflows. Each
-profile run adds up to `add_per_run` missing
-`core_skills` (in list order), then skills from `rotate_skills`; optional
-rotating skills are removed according to `skill_policy`. Other skills are
-preserved unless needed to enforce `max_total`.
+The configuration currently reflects 1 year of experience and the supplied
+Python, SQL, Excel, Power BI, data analysis, data cleaning, and data
+visualization skills. Confirm the résumé and all profile details are accurate.
+The scheduled profile run adds missing core skills and removes the prior
+unverified skills configured for cleanup.
 
 ### 7. Run it
 
-- **Actions → Update Naukri Profile → Run workflow** (manual test)
-- Or wait for the hourly GitHub schedule: 08:00–20:00 India time, with a retry
-  15 minutes later if no active or successful run exists in that IST hour.
+- **Actions → Update Naukri Profile → Run workflow** for a manual run.
+- Scheduled full runs occur at 09:00, 12:00, and 14:00 IST.
+- Review the run's **Summary** for profile status, jobs found, confirmed
+  applications, pending confirmations, and errors. The artifact includes the
+  JSON run report and a copy of the application ledger.
 
-The hourly workflow removes the opening "Full Stack Developer" phrase from the
-configured profile summary, verifies that removal, adds the phrase back, and
-uploads the resume; it does not change the headline or key skills. Scheduled
-runs happen automatically and do not require a prompt. Automatic updates use
-GitHub's `schedule` event; **Run workflow** and explicit `gh workflow run`
-commands create `workflow_dispatch` events and appear as manually started.
-
-## Job auto-apply (every 8 hours)
+## Job applications
 
 ```bash
 HEADLESS=0 python src/main.py --mode apply
 ```
 
 Rules:
-1. Read your live profile skills + config skills
-2. Scan Recommended + targeted searches
-3. Keep jobs where **required skills match ≥ 60%**
-4. Sort **latest first**
-5. Apply to up to the configured `max_apply_per_run` matching jobs
+1. Search Recommended and configured role queries across Naukri India.
+2. Match the configured actual skills and 0–1-year/fresher experience.
+3. Prioritize postings from the last 24 hours and apply to up to 10 per run.
+4. Skip jobs already marked as applied on Naukri or present in the persistent
+   runner ledger (`naukri_applications.csv` under the runner's `_work` folder).
+5. Submit only when Naukri confirms after the initial Apply action. If another
+   Continue/Confirm/Submit action is required, do not click it; record the job
+   as pending confirmation with its link for manual review.
 
-GitHub Action: `.github/workflows/apply-jobs.yml` (`0 */8 * * *` UTC).
-Local loop is preferred (Akamai often blocks cloud IPs).
+The `apply-jobs.yml` workflow is manual-only (dry run by default); scheduled
+applications run as part of the profile workflow to avoid duplicate runs.
 
-## Skill rotation policy
+## Skill policy
 
 Each profile-mode run uses the planner to:
 
 1. keeps all `core_skills`
-2. removes up to `remove_per_run` non-core skills from the rotate pool
-3. adds up to `add_per_run` missing rotate skills
+2. removes the configured prior skills that are not part of the verified core
+3. adds missing core skills
 4. clamps total into `[min_total, max_total]`
 
 Same UTC hour → same plan (safe retries).
 
 ## Important notes
 
-- Naukri UI changes often; if a step skips, check Action artifacts (`summary_skip.png`, `skills_skip.png`, `failure.png`) and adjust selectors in `src/naukri_client.py`.
+- Naukri UI changes often; if a step skips, check the Action artifacts and adjust selectors in `src/naukri_client.py`.
 - Automated profile updates and job applications may be subject to Naukri terms; review each workflow and keep profile claims truthful.
 - Prefer session cookies over password login in CI.
-- Cron is UTC. The profile workflow runs hourly from 08:00 through 20:00 India time; job applications run every 8 hours.
+- Cron is UTC. The scheduled profile and job-application workflow runs at
+  09:00, 12:00, and 14:00 IST. The self-hosted runner must be online; GitHub
+  can delay scheduled starts by several minutes.

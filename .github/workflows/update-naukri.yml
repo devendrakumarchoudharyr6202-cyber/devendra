@@ -2,21 +2,21 @@ name: Update Naukri Profile
 
 on:
   schedule:
-    # Try at 08:00-20:00 IST, retry 15 minutes later if the hour has not succeeded.
-    - cron: "30,45 2-14 * * *"
+    # 09:00, 12:00 and 14:00 IST.
+    - cron: "30 3,6,8 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Preview summary update and skip profile saves/resume upload"
+        description: "Preview profile and matching jobs without saving or applying"
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: naukri-profile-update
+  group: naukri-daily-automation
   cancel-in-progress: false
 
 jobs:
@@ -92,6 +92,14 @@ jobs:
         if: steps.hour_guard.outputs.should_run == 'true'
         uses: actions/checkout@v4
 
+      - name: Configure persistent application log
+        if: steps.hour_guard.outputs.should_run == 'true'
+        shell: powershell
+        run: |
+          $workRoot = Split-Path -Parent (Split-Path -Parent $env:GITHUB_WORKSPACE)
+          $logPath = Join-Path $workRoot "naukri_applications.csv"
+          Add-Content -Path $env:GITHUB_ENV -Value "NAUKRI_APPLICATION_LOG_PATH=$logPath"
+
       - name: Validate Naukri authentication
         if: steps.hour_guard.outputs.should_run == 'true'
         env:
@@ -113,7 +121,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
 
       - name: Install dependencies
         if: steps.hour_guard.outputs.should_run == 'true'
@@ -147,10 +154,56 @@ jobs:
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
           NAUKRI_STORAGE_STATE_GZ_B64: ${{ secrets.NAUKRI_STORAGE_STATE_GZ_B64 }}
           NAUKRI_STORAGE_STATE_B64: ${{ secrets.NAUKRI_STORAGE_STATE_B64 }}
-          NAUKRI_MODE: resume_summary
+          NAUKRI_MODE: both
           HEADLESS: "0"
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
-        run: python src/main.py
+        run: python src/main.py --mode both
+
+      - name: Add run report to workflow summary
+        if: always() && steps.hour_guard.outputs.should_run == 'true'
+        shell: powershell
+        run: |
+          $reportPath = Join-Path $env:GITHUB_WORKSPACE "artifacts\run_report.json"
+          if (-not (Test-Path $reportPath)) {
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value "## Naukri automation report`nReport file was not created; inspect the failed workflow step."
+            exit 0
+          }
+          $report = Get-Content -Raw $reportPath | ConvertFrom-Json
+          $lines = @(
+            "## Naukri automation report",
+            "- Run time (IST): $($report.generated_at_ist)",
+            "- Profile update: $(if ($report.profile) { 'completed' } else { 'failed or unavailable' })"
+          )
+          if ($report.profile) {
+            $lines += "- Résumé upload verified: $($report.profile.resume_uploaded)"
+            $lines += "- Skills added: $(@($report.profile.skills.added).Count); removed: $(@($report.profile.skills.removed).Count)"
+          }
+          if ($report.apply) {
+            $lines += "- Jobs found: $($report.apply.jobs_found)"
+            $lines += "- Matching jobs: $($report.apply.jobs_matching_criteria)"
+            $lines += "- Applications confirmed: $($report.apply.applied_count)"
+            $lines += "- Awaiting confirmation / unconfirmed: $($report.apply.applications_unconfirmed.Count)"
+            foreach ($pending in $report.apply.applications_unconfirmed) {
+              if ($pending.status -eq "pending_confirmation" -and $pending.application_link) {
+                $lines += "- Approval needed: [$($pending.title) @ $($pending.company)]($($pending.application_link))"
+              }
+            }
+          }
+          foreach ($errorItem in $report.errors) {
+            $lines += "- ERROR ($($errorItem.stage)): $($errorItem.message)"
+          }
+          Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value ($lines -join "`n")
+
+      - name: Copy application ledger to artifact
+        if: always() && steps.hour_guard.outputs.should_run == 'true'
+        shell: powershell
+        run: |
+          $ledgerPath = $env:NAUKRI_APPLICATION_LOG_PATH
+          if ($ledgerPath -and (Test-Path $ledgerPath)) {
+            $artifactDirectory = Join-Path $env:GITHUB_WORKSPACE "artifacts"
+            New-Item -ItemType Directory -Force -Path $artifactDirectory | Out-Null
+            Copy-Item $ledgerPath (Join-Path $artifactDirectory "application_log.csv") -Force
+          }
 
       - name: Upload artifacts on failure/success
         if: always() && steps.hour_guard.outputs.should_run == 'true'

@@ -1,14 +1,17 @@
-# Based on the profile details provided by the user.
+target_role: "Data Analyst"
+experience_years: 1
 
-target_role: "Senior Full Stack Developer"
-experience_years: 6
-
-# Python, data analysis, visualization, Excel, and web skills for profile matching.
 core_skills:
   - Python
   - SQL
-  - MySQL
+  - Excel
+  - Power BI
+  - Data Analysis
   - Data Cleaning
+  - Data Visualization
+
+rotate_skills:
+  - MySQL
   - Data Transformation
   - Exploratory Data Analysis (EDA)
   - Microsoft Power BI
@@ -26,71 +29,71 @@ core_skills:
   - Charts
   - Interactive Dashboards
   - KPI Reporting
-  - Data Visualization
   - HTML
   - CSS
   - Jupyter Notebook
   - VS Code
-
-rotate_skills: []
+  - Angular
+  - TypeScript
+  - JavaScript
+  - C#
+  - .NET Core
+  - ASP.NET Core Web API
+  - SQL Server
+  - REST APIs
+  - RxJS
+  - NgRx
+  - Entity Framework Core
+  - LINQ
+  - Microservices
+  - JWT authentication
+  - Swagger
+  - GitHub
+  - Visual Studio Code
 
 skill_policy:
-  min_total: 25
+  min_total: 7
   max_total: 150
-  add_per_run: 1
-  remove_per_run: 1
+  add_per_run: 7
+  remove_per_run: 150
   protect_core: true
 
 headline_variants:
-  - "Senior Full Stack Developer | 6+ Years | Angular | C# | .NET Core | ASP.NET Core Web API | SQL Server"
-  - "Senior Angular Developer | Angular 12+ | TypeScript | JavaScript | RxJS | NgRx | Angular Material"
-  - "Senior Software Engineer | Angular | C# | .NET 6/7/8 | REST APIs | SQL Server | Microservices"
-  - "Angular .NET Full Stack Developer | Angular | TypeScript | ASP.NET Core | Entity Framework Core | SQL Server"
+  - "Data Analyst | 1 Year Experience | Python | SQL | Excel | Power BI"
+  - "Junior Data Analyst | Python | SQL | Excel | Power BI | Data Visualization"
+  - "Data Analyst | Data Cleaning | Data Analysis | Python | SQL | Power BI"
+  - "Entry-Level Data Analyst | Python | SQL | Excel | Power BI"
 
 summary_variants:
   - |
-    Senior Full Stack Developer with 6+ years of experience in Angular,
-    TypeScript, JavaScript, C#, .NET Core, ASP.NET Core Web API, SQL Server,
-    REST APIs, and modern web application development. Skilled in RxJS, NgRx,
-    Entity Framework Core, LINQ, microservices, JWT authentication and
-    authorization, and SOLID principles. Experienced with Swagger, Git,
-    GitHub, and Visual Studio Code.
+    Data Analyst with 1 year of experience using Python, SQL, Excel, and Power
+    BI for data analysis, data cleaning, and data visualization. Focused on
+    accurate analysis and clear reporting.
   - |
-    Senior Full Stack Developer with 6+ years of experience building modern web
-    applications using Angular 12+, TypeScript, JavaScript, C#, and .NET.
-    Experienced in ASP.NET Core Web API, RESTful API integration, SQL Server,
-    Entity Framework Core, LINQ, RxJS, and NgRx. Familiar with microservices,
-    JWT authentication and authorization, SOLID principles, Swagger, Git, and
-    GitHub.
+    Junior Data Analyst with 1 year of experience working with Python, SQL,
+    Excel, and Power BI. Skilled in data cleaning, analysis, and visualization,
+    with an interest in turning data into useful business insights.
   - |
-    Full Stack Developer with 6+ years of experience across Angular frontend
-    development and C#/.NET backend development. Core technologies include
-    Angular, TypeScript, JavaScript, RxJS, NgRx, ASP.NET Core Web API, .NET 6/7/8,
-    SQL Server, and Entity Framework Core. Works with REST APIs, microservices,
-    authentication and authorization, JWT, and SOLID principles.
+    Data Analyst with 1 year of experience in Python, SQL, Excel, and Power BI.
+    Experienced in preparing and cleaning data, analyzing datasets, and
+    presenting findings through clear visualizations.
   - |
-    Senior Software Engineer with 6+ years of experience in modern web
-    application development using Angular, TypeScript, JavaScript, C#, .NET
-    Core, ASP.NET Core Web API, and SQL Server. Skilled in REST API integration,
-    Entity Framework Core, LINQ, RxJS, NgRx, and microservices, with experience
-    using Swagger, Git, GitHub, and Visual Studio Code.
+    Entry-level Data Analyst with 1 year of experience applying Python, SQL,
+    Excel, and Power BI to data cleaning, analysis, and visualization tasks.
 
 scheduled_summary: |
-  Full Stack Developer with 6+ years of experience in modern web application
-  development using Angular, TypeScript, JavaScript, C#, .NET Core, ASP.NET Core
-  Web API, and SQL Server. Skilled in REST API integration, Entity Framework
-  Core, LINQ, RxJS, NgRx, and microservices, with experience using Swagger, Git,
-  GitHub, and Visual Studio Code.
+  Data Analyst with 1 year of experience using Python, SQL, Excel, and Power BI
+  for data analysis, data cleaning, and data visualization. Focused on accurate
+  analysis and clear reporting.
 
 target_job_titles:
-  - Senior Angular Developer
-  - Senior Frontend Developer
-  - Angular Developer
-  - Senior Full Stack Developer
-  - .NET Full Stack Developer
-  - Angular .NET Developer
-  - Software Engineer
-  - Senior Software Engineer
+  - Data Analyst
+  - Junior Data Analyst
+  - MIS Executive
+  - Python Developer
+  - SQL Developer
+  - Business Analyst Intern
+  - Data Analyst Intern
 
 resume:
   path: assets/resume.pdf
@@ -99,16 +102,19 @@ resume:
 job_apply:
   enabled: true
   min_skill_match: 0.60
-  max_apply_per_run: 999
+  max_apply_per_run: 10
   max_posting_age_hours: 24
   source: recommended_plus_search
   search_queries:
-    - ".NET Full Stack Developer Angular"
-    - "Dot Net Full Stack Developer Angular"
-    - "Angular .NET Full Stack Engineer"
-    - "Fullstack Angular ASP.NET Core"
+    - "Data Analyst fresher"
+    - "Junior Data Analyst"
+    - "MIS Executive fresher"
+    - "Python Developer 0-1 years"
+    - "SQL Developer fresher"
+    - "Business Analyst Intern"
+    - "Data Analyst Intern"
 
 behavior:
-  headless: true
+  headless: false
   timeout_ms: 45000
   dry_run: false

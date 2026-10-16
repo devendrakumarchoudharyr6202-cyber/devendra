@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -28,12 +29,11 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 log = logging.getLogger("naukri")
+IST = timezone(timedelta(hours=5, minutes=30), "IST")
 
 
-def _profile_skill_pool(cfg: dict, live_skills: list[str] | None = None) -> list[str]:
+def _profile_skill_pool(cfg: dict) -> list[str]:
     pool = list(cfg.get("core_skills") or []) + list(cfg.get("rotate_skills") or [])
-    if live_skills:
-        pool.extend(live_skills)
     # de-dupe preserve order
     seen: set[str] = set()
     out: list[str] = []
@@ -58,18 +58,7 @@ def run_apply_only(cfg: dict) -> dict:
         browser, page = agent._launch(p)
         try:
             agent._login(page)
-            live = []
-            try:
-                page.goto(
-                    "https://www.naukri.com/mnjuser/profile",
-                    wait_until="domcontentloaded",
-                    timeout=90000,
-                )
-                page.wait_for_timeout(2500)
-                live = agent._read_skills(page)
-            except Exception as exc:
-                log.warning("Could not read live skills (%s); using config pool", exc)
-            skills = _profile_skill_pool(cfg, live)
+            skills = _profile_skill_pool(cfg)
             result = apply_jobs(
                 page,
                 skills,
@@ -79,6 +68,7 @@ def run_apply_only(cfg: dict) -> dict:
                 search_queries=job_cfg.get("search_queries"),
                 experience_years=int(cfg.get("experience_years", 6)),
                 max_age_hours=int(job_cfg.get("max_posting_age_hours", 24)),
+                target_titles=cfg.get("target_job_titles"),
             )
             agent._save_storage()
             agent._screenshot(page, "apply_done.png")
@@ -103,23 +93,50 @@ def main() -> int:
     args = parser.parse_args()
     cfg = load_config()
 
-    out: dict = {"mode": args.mode}
+    out: dict = {
+        "mode": args.mode,
+        "generated_at_ist": datetime.now(IST).isoformat(timespec="seconds"),
+    }
+    errors: list[dict[str, str]] = []
 
     if args.mode in ("profile", "both"):
-        email, password = credentials(allow_session=True)
-        agent = NaukriAgent(cfg, email, password)
-        out["profile"] = agent.run()
+        try:
+            email, password = credentials(allow_session=True)
+            agent = NaukriAgent(cfg, email, password)
+            out["profile"] = agent.run()
+        except Exception as exc:
+            log.exception("Profile update failed")
+            errors.append({"stage": "profile", "message": str(exc)})
 
     if args.mode == "resume_summary":
-        email, password = credentials(allow_session=True)
-        agent = NaukriAgent(cfg, email, password)
-        out["resume_summary"] = agent.run_resume_summary()
+        try:
+            email, password = credentials(allow_session=True)
+            agent = NaukriAgent(cfg, email, password)
+            out["resume_summary"] = agent.run_resume_summary()
+        except Exception as exc:
+            log.exception("Profile summary update failed")
+            errors.append({"stage": "profile", "message": str(exc)})
 
     if args.mode in ("apply", "both"):
-        out["apply"] = run_apply_only(cfg)
+        if (cfg.get("job_apply") or {}).get("enabled", True):
+            try:
+                out["apply"] = run_apply_only(cfg)
+                errors.extend(
+                    {"stage": "job_search", "message": message}
+                    for message in out["apply"].get("search_errors", [])
+                )
+            except Exception as exc:
+                log.exception("Job search/application run failed")
+                errors.append({"stage": "job_apply", "message": str(exc)})
+        else:
+            out["apply"] = {"message": "Job applications are disabled in config."}
 
+    out["errors"] = errors
+    report_path = Path(__file__).resolve().parents[1] / "artifacts" / "run_report.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(out, indent=2), encoding="utf-8")
     print(json.dumps(out, indent=2))
-    return 0
+    return 1 if errors else 0
 
 
 if __name__ == "__main__":

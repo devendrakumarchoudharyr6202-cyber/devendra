@@ -3,25 +3,105 @@
 from __future__ import annotations
 
 import logging
+import csv
+import os
 import re
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus
 
 from playwright.sync_api import Page
 
-from job_matcher import age_to_hours, experience_includes_years, skill_match_ratio
+from job_matcher import (
+    JobCard,
+    age_to_hours,
+    experience_includes_years,
+    skill_match_ratio,
+)
 
 log = logging.getLogger("naukri.jobs")
 
 RECOMMENDED_URL = "https://www.naukri.com/mnjuser/recommendedjobs"
 
-# Freshness-oriented searches aligned to the configured Angular/.NET profile
 SEARCH_QUERIES = [
-    ".NET Full Stack Developer Angular",
-    "Dot Net Full Stack Developer Angular",
-    "Angular .NET Full Stack Engineer",
-    "Fullstack Angular ASP.NET Core",
+    "Data Analyst fresher",
+    "Junior Data Analyst",
+    "MIS Executive fresher",
+    "Python Developer 0-1 years",
+    "SQL Developer fresher",
+    "Business Analyst Intern",
+    "Data Analyst Intern",
 ]
+DEFAULT_TARGET_TITLES = [
+    "Data Analyst",
+    "Junior Data Analyst",
+    "MIS Executive",
+    "Python Developer",
+    "SQL Developer",
+    "Business Analyst Intern",
+    "Data Analyst Intern",
+]
+
+APPLICATION_LOG_FIELDS = (
+    "date_ist",
+    "job_id",
+    "company",
+    "title",
+    "application_link",
+    "status",
+)
+IST = timezone(timedelta(hours=5, minutes=30), "IST")
+
+
+def _application_log_path() -> Path:
+    configured_path = os.getenv("NAUKRI_APPLICATION_LOG_PATH", "").strip()
+    if configured_path:
+        return Path(configured_path)
+    return Path(__file__).resolve().parents[1] / "artifacts" / "applications.csv"
+
+
+def _job_key(item: dict[str, Any]) -> str:
+    job_id = str(item.get("job_id") or "").strip()
+    if job_id:
+        return f"id:{job_id}"
+    href = str(
+        item.get("href") or item.get("application_link") or ""
+    ).strip().rstrip("/").lower()
+    if href:
+        return f"url:{href}"
+    return f"title:{item.get('title', '')}|{item.get('company', '')}".lower()
+
+
+def _load_application_history(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    with path.open(encoding="utf-8", newline="") as csv_file:
+        return {
+            _job_key(row): row.get("status", "")
+            for row in csv.DictReader(csv_file)
+            if row.get("status") not in {"dry_run", ""}
+        }
+
+
+def _record_application(item: dict[str, Any], status: str) -> dict[str, str]:
+    path = _application_log_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    row = {
+        "date_ist": datetime.now(IST).isoformat(timespec="seconds"),
+        "job_id": str(item.get("job_id") or ""),
+        "company": str(item.get("company") or ""),
+        "title": str(item.get("title") or ""),
+        "application_link": str(item.get("href") or ""),
+        "status": status,
+    }
+    needs_header = not path.exists() or path.stat().st_size == 0
+    with path.open("a", encoding="utf-8", newline="") as csv_file:
+        writer = csv.DictWriter(csv_file, fieldnames=APPLICATION_LOG_FIELDS)
+        if needs_header:
+            writer.writeheader()
+        writer.writerow(row)
+    return row
 
 
 def _scroll(page: Page, times: int = 3) -> None:
@@ -35,36 +115,42 @@ def collect_recommended_jobs(page: Page, limit: int = 40) -> list[dict[str, Any]
     page.wait_for_timeout(3000)
     _scroll(page, 4)
     return page.evaluate(
-        """(limit) => [...document.querySelectorAll('article.jobTuple')].slice(0, limit).map(a => ({
-          job_id: a.getAttribute('data-job-id') || '',
-          title: a.querySelector('p.title')?.getAttribute('title')
-            || a.querySelector('p.title')?.innerText?.trim() || '',
-          company: a.querySelector('.companyWrapper span')?.getAttribute('title') || '',
-          age_text: (a.querySelector('.jobTupleFooter')?.innerText || '').split('\\n')[0].trim(),
-          salary_text: [...a.querySelectorAll(
-            '.ni-job-tuple-icon-srp-rupee, .salary, .sal, [class*="salary"]'
-          )].map(e => e.innerText.trim()).filter(Boolean).join(' '),
-          experience_text: [...a.querySelectorAll(
-            '.exp-wrap, [class*="experience"], [class*="exp"]'
-          )].map(e => e.innerText.trim()).filter(Boolean).join(' '),
-          already_applied: /\\b(already applied|you have applied|applied)\\b/i.test(a.innerText || ''),
-          required_skills: [...a.querySelectorAll('ul.tags li')].map(li => li.innerText.trim()).filter(Boolean),
-          source: 'recommended'
-        }))""",
+        """(limit) => [...document.querySelectorAll('article.jobTuple')].slice(0, limit).map(a => {
+          const link = a.querySelector('a.title, a[href*="job-listings"]');
+          const href = link?.href || '';
+          const idMatch = href.match(/(\\d{8,})$/) || href.match(/-(\\d{10,})/);
+          return {
+            job_id: a.getAttribute('data-job-id') || (idMatch ? idMatch[1] : ''),
+            href,
+            title: link?.getAttribute('title') || link?.innerText?.trim()
+              || a.querySelector('p.title')?.getAttribute('title') || '',
+            company: a.querySelector('.companyWrapper span')?.getAttribute('title') || '',
+            age_text: (a.querySelector('.jobTupleFooter')?.innerText || '').split('\\n')[0].trim(),
+            salary_text: [...a.querySelectorAll(
+              '.ni-job-tuple-icon-srp-rupee, .salary, .sal, [class*="salary"]'
+            )].map(e => e.innerText.trim()).filter(Boolean).join(' '),
+            experience_text: [...a.querySelectorAll(
+              '.exp-wrap, [class*="experience"], [class*="exp"]'
+            )].map(e => e.innerText.trim()).filter(Boolean).join(' '),
+            already_applied: /\\b(already applied|you have applied|applied)\\b/i.test(a.innerText || ''),
+            required_skills: [...a.querySelectorAll('ul.tags li')].map(li => li.innerText.trim()).filter(Boolean),
+            source: 'recommended'
+          };
+        }).filter(j => j.title);""",
         limit,
     )
 
 
-def collect_search_jobs(page: Page, query: str, limit: int = 20) -> list[dict[str, Any]]:
-    # sort=date / freshness via naukri search URL
+def collect_search_jobs(
+    page: Page,
+    query: str,
+    limit: int = 20,
+    experience_years: int = 1,
+) -> list[dict[str, Any]]:
+    slug = quote_plus(query).replace("+", "-").lower()
     url = (
-        f"https://www.naukri.com/{quote_plus(query).replace('+', '-').lower()}-jobs"
-        f"?k={quote_plus(query)}&experience=6&jobAge=1&nignbevent_src=jobsearchDeskGNB"
-    )
-    # Prefer simpler k= search which Naukri accepts
-    url = (
-        "https://www.naukri.com/software-developer-jobs"
-        f"?k={quote_plus(query)}&experience=6&jobAge=1"
+        f"https://www.naukri.com/{slug}-jobs"
+        f"?k={quote_plus(query)}&experience={experience_years}&jobAge=1"
     )
     page.goto(url, wait_until="domcontentloaded", timeout=90000)
     page.wait_for_timeout(3500)
@@ -133,15 +219,17 @@ def rank_jobs(
     return ranked
 
 
-def _matches_angular_dotnet_full_stack_title(title: str) -> bool:
+def _matches_target_title(title: str, target_titles: list[str]) -> bool:
     normalized = re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
-    has_angular = "angular" in normalized.split()
-    has_dotnet = any(
+    if any(
         token in normalized.split()
-        for token in ("dotnet", "net")
+        for token in ("senior", "sr", "lead", "principal", "manager", "director", "head")
+    ):
+        return False
+    return any(
+        re.sub(r"[^a-z0-9]+", " ", target.lower()).strip() in normalized
+        for target in target_titles
     )
-    has_full_stack = "full stack" in normalized or "fullstack" in normalized
-    return has_angular and has_dotnet and has_full_stack
 
 
 def _apply_on_detail(page: Page, href: str, dry_run: bool) -> tuple[bool, str]:
@@ -164,14 +252,6 @@ def _apply_on_detail(page: Page, href: str, dry_run: bool) -> tuple[bool, str]:
         return False, "Dry run; application not submitted"
     btn.click()
     page.wait_for_timeout(3000)
-    for label in ("Continue", "Apply", "OK", "Submit", "Done"):
-        b = page.get_by_role("button", name=re.compile(rf"^{label}$", re.I))
-        if b.count() and b.first.is_visible():
-            try:
-                b.first.click(timeout=2000)
-                page.wait_for_timeout(1200)
-            except Exception:
-                pass
     confirmation = page.locator("body").inner_text()
     if re.search(
         r"\b(application submitted|successfully applied|application sent|applied successfully)\b",
@@ -185,6 +265,20 @@ def _apply_on_detail(page: Page, href: str, dry_run: bool) -> tuple[bool, str]:
     )
     if applied_button.count():
         return True, "Apply control changed to Applied"
+    for role in ("button", "link"):
+        final_confirmation = page.get_by_role(
+            role,
+            name=re.compile(r"\b(continue|confirm|submit|proceed|yes|apply)\b", re.I),
+        )
+        if any(
+            final_confirmation.nth(index).is_visible()
+            for index in range(final_confirmation.count())
+        ):
+            return (
+                False,
+                "Awaiting user approval: Naukri requires another confirmation; "
+                "the final submission was not clicked",
+            )
     return False, "Submission could not be confirmed"
 
 
@@ -198,22 +292,30 @@ def apply_jobs(
     search_queries: list[str] | None = None,
     experience_years: int = 6,
     max_age_hours: int = 24,
+    target_titles: list[str] | None = None,
 ) -> dict[str, Any]:
     raw: list[dict[str, Any]] = []
+    search_errors: list[str] = []
     raw.extend(collect_recommended_jobs(page))
     for q in search_queries or SEARCH_QUERIES:
         try:
-            raw.extend(collect_search_jobs(page, q))
+            raw.extend(
+                collect_search_jobs(
+                    page, q, experience_years=experience_years
+                )
+            )
         except Exception as exc:
             log.warning("Search failed for %s: %s", q, exc)
+            search_errors.append(f"{q}: {exc}")
+
+    log_path = _application_log_path()
+    application_history = _load_application_history(log_path)
 
     unique: list[dict[str, Any]] = []
     skipped: list[dict[str, str]] = []
     seen: set[str] = set()
     for item in raw:
-        key = str(item.get("job_id") or item.get("href") or "")
-        if not key:
-            key = f"{item.get('title', '')}|{item.get('company', '')}".lower()
+        key = _job_key(item)
         if key in seen:
             skipped.append({
                 "title": item.get("title") or "(untitled)",
@@ -232,8 +334,8 @@ def apply_jobs(
         def skip(reason: str) -> None:
             skipped.append({"title": title, "company": company, "reason": reason})
 
-        if not _matches_angular_dotnet_full_stack_title(title):
-            skip("Title is not explicitly Angular + .NET + Full Stack")
+        if not _matches_target_title(title, target_titles or DEFAULT_TARGET_TITLES):
+            skip("Title does not match a configured target role")
             continue
         ratio = skill_match_ratio(item.get("required_skills") or [], profile_skills)
         if ratio + 1e-9 < min_match:
@@ -242,13 +344,30 @@ def apply_jobs(
         age_text = item.get("age_text") or ""
         age_hours = age_to_hours(age_text)
         if age_hours > max_age_hours:
-            skip("Posting age missing or older than 24 hours")
+            skip(f"Posting age missing or older than {max_age_hours} hours")
             continue
-        if not experience_includes_years(item.get("experience_text") or "", experience_years):
-            skip(f"Experience requirement does not clearly include {experience_years}+ years")
+        experience_text = item.get("experience_text") or ""
+        if not (
+            experience_includes_years(experience_text, experience_years)
+            or re.search(r"\b(fresher|entry.level|no experience)\b", experience_text, re.I)
+        ):
+            skip(
+                "Experience requirement does not clearly include "
+                f"{experience_years} year(s) or fresher eligibility"
+            )
             continue
         if item.get("already_applied"):
             skip("Already applied")
+            continue
+        history_key = _job_key(item)
+        if history_key in application_history:
+            skip(
+                "Application already recorded as "
+                f"{application_history[history_key]}"
+            )
+            continue
+        if not company or not (item.get("href") or item.get("job_id")):
+            skip("Company or application link is unavailable")
             continue
         eligible.append({
             **item,
@@ -285,6 +404,7 @@ def apply_jobs(
                 "job_id": j.get("job_id", ""),
                 "title": j.get("title", ""),
                 "company": j.get("company", ""),
+                "application_link": j.get("href", ""),
                 "age": j.get("age_text", ""),
                 "match": round(j["match_ratio"], 3),
                 "skills": j.get("required_skills", []),
@@ -298,6 +418,7 @@ def apply_jobs(
         "skipped": skipped,
         "dry_run": dry_run,
         "message": "",
+        "search_errors": search_errors,
     }
 
     if not selected:
@@ -308,16 +429,31 @@ def apply_jobs(
         href = job.get("href") or ""
         if not href and str(job.get("job_id", "")).isdigit():
             href = f"https://www.naukri.com/job-listings-{job['job_id']}"
+        job["href"] = href
         success, status = _apply_on_detail(page, href, dry_run)
         details = {
+            "job_id": str(job.get("job_id") or ""),
             "title": job.get("title", ""),
             "company": job.get("company", ""),
+            "application_link": href,
+            "date_ist": datetime.now(
+                IST
+            ).isoformat(timespec="seconds"),
             "reason": status,
         }
         if success:
-            submitted.append(details)
-        elif dry_run or status == "Submission could not be confirmed":
+            submitted.append(_record_application(job, "submitted"))
+        elif status.startswith("Awaiting user approval:"):
+            details["status"] = "pending_confirmation"
             unconfirmed.append(details)
+            _record_application(job, "pending_confirmation")
+        elif dry_run:
+            details["status"] = "dry_run"
+            unconfirmed.append(details)
+        elif status == "Submission could not be confirmed":
+            details["status"] = "submission_unconfirmed"
+            unconfirmed.append(details)
+            _record_application(job, "submission_unconfirmed")
         else:
             skipped.append(details)
 
