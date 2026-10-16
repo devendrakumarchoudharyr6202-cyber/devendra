@@ -1,8 +1,8 @@
 # Naukri Profile Agent (GitHub Actions)
 
-The GitHub Actions workflows update the profile summary and upload the latest
-resume to Naukri hourly between 08:00 and 20:00 India time and apply to matching
-jobs using the settings in
+The profile workflow updates the profile summary and uploads the latest resume
+hourly between 08:00 and 20:00 India time on a self-hosted Windows runner.
+The separate GitHub Actions workflow applies to matching jobs using the settings in
 `config/profile.yaml`.
 
 ## How it works
@@ -10,6 +10,7 @@ jobs using the settings in
 ```text
 GitHub cron (profile update hourly 08:00–20:00 India time / job applications every 8 hours)
    → checkout repo
+   → self-hosted Windows runner for profile updates / hosted runner for job applications
    → Playwright (Chromium)
    → login via session cookie secret (preferred) or email/password
    → update the configured summary and upload the resume during the hourly workflow
@@ -91,7 +92,26 @@ compresses the remaining session, verifies it fits GitHub's secret-size limit,
 and sends it to GitHub using the CLI. The workflow decompresses it at runtime.
 Re-capture when the session expires (usually weeks).
 
-### 4. Add your résumé
+### 4. Set up the Windows Actions runner
+
+Naukri blocks or times out requests from GitHub-hosted runners. The **Update
+Naukri Profile** workflow therefore uses your Windows PC as a self-hosted runner.
+
+1. In the GitHub repository, open **Settings → Actions → Runners → New
+   self-hosted runner**, select **Windows** and **x64**, and follow GitHub's
+   current instructions to download and configure the runner in a dedicated
+   folder. Do not share the temporary runner registration token.
+2. Start the runner interactively with `.\run.cmd` and leave its PowerShell
+   window open. Keep the PC awake and the Windows user session signed in. The
+   workflow opens a visible browser (`HEADLESS=0`), so do not run it as a
+   Windows service in session 0.
+3. Confirm the runner shows **Idle** under **Settings → Actions → Runners**.
+   Then use **Actions → Update Naukri Profile → Run workflow**.
+
+Scheduled profile updates only run while this PC is awake and the runner is
+online. The Apply Naukri Jobs workflow still uses GitHub-hosted runners.
+
+### 5. Add your résumé
 
 `assets/resume.pdf` is gitignored because it may contain personal information.
 For GitHub Actions, choose one:
@@ -100,11 +120,17 @@ For GitHub Actions, choose one:
 # Private repo: force-add
 git add -f assets/resume.pdf
 
-# Or secret (safer)
-base64 -w0 assets/resume.pdf   # → RESUME_B64
+# Or store it as an Actions secret (recommended)
+$resumeB64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes("assets\resume.pdf"))
+$resumeB64 | & "$env:ProgramFiles\GitHub CLI\gh.exe" secret set RESUME_B64 --repo devendrakumarchoudharyr6202-cyber/devendra
 ```
 
-### 5. Review `config/profile.yaml`
+For a normal profile update, the workflow requires the `RESUME_B64` secret
+unless the résumé is checked into the repository. Dry runs skip résumé restore.
+The command above sends it through standard input; do not print or paste the
+encoded résumé into chat.
+
+### 6. Review `config/profile.yaml`
 
 The configured `core_skills` list reflects the supplied Python, data analysis,
 visualization, Excel, and web skills. Headlines, summaries, and target job
@@ -115,7 +141,7 @@ profile run adds up to `add_per_run` missing
 rotating skills are removed according to `skill_policy`. Other skills are
 preserved unless needed to enforce `max_total`.
 
-### 6. Run it
+### 7. Run it
 
 - **Actions → Update Naukri Profile → Run workflow** (manual test)
 - Or wait for the hourly GitHub schedule: 08:00–20:00 India time, with a retry

@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   update-profile:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 20
 
     steps:
@@ -29,42 +29,64 @@ jobs:
         id: hour_guard
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        shell: powershell
         run: |
-          if [[ "$GITHUB_EVENT_NAME" != "schedule" ]]; then
-            echo "Manual run requested; proceeding"
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          if ($env:GITHUB_EVENT_NAME -ne "schedule") {
+            Write-Host "Manual run requested; proceeding"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "should_run=true"
             exit 0
-          fi
+          }
 
-          local_hour="$(TZ=Asia/Kolkata date +%H)"
-          if (( 10#$local_hour < 8 || 10#$local_hour > 20 )); then
-            echo "Outside the 08:00-20:00 India-time update window"
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          $indiaTimeZone = [TimeZoneInfo]::FindSystemTimeZoneById("India Standard Time")
+          $nowIndia = [TimeZoneInfo]::ConvertTimeFromUtc([DateTime]::UtcNow, $indiaTimeZone)
+          if ($nowIndia.Hour -lt 8 -or $nowIndia.Hour -gt 20) {
+            Write-Host "Outside the 08:00-20:00 India-time update window"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "should_run=false"
             exit 0
-          fi
+          }
 
-          current_hour="$(TZ=Asia/Kolkata date +'%Y-%m-%d-%H')"
-          runs="$(gh api \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/update-naukri.yml/runs?branch=main&per_page=100" \
-            --jq '.workflow_runs[] | [.id, .status, (.conclusion // ""), (.run_started_at // .created_at)] | @tsv')"
+          $currentHour = $nowIndia.ToString("yyyy-MM-dd-HH")
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+          $uri = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/actions/workflows/update-naukri.yml/runs?branch=main&per_page=100"
+          $runs = (Invoke-RestMethod -Uri $uri -Headers $headers).workflow_runs
 
-          while IFS=$'\t' read -r run_id status conclusion run_time; do
-            [[ -z "$run_id" || "$run_id" == "$GITHUB_RUN_ID" ]] && continue
-            if [[ "$status" != "queued" && "$status" != "in_progress" &&
-                  ( "$status" != "completed" || "$conclusion" != "success" ) ]]; then
+          foreach ($run in $runs) {
+            if ($run.id.ToString() -eq $env:GITHUB_RUN_ID) {
               continue
-            fi
+            }
 
-            run_hour="$(TZ=Asia/Kolkata date -d "$run_time" +'%Y-%m-%d-%H')"
-            if [[ "$run_hour" == "$current_hour" ]]; then
-              echo "An active or successful update already exists this India-time hour"
-              echo "should_run=false" >> "$GITHUB_OUTPUT"
+            $isActive = $run.status -in @("queued", "in_progress")
+            $isSuccessful = $run.status -eq "completed" -and $run.conclusion -eq "success"
+            if (-not $isActive -and -not $isSuccessful) {
+              continue
+            }
+
+            $runTime = $run.run_started_at
+            if (-not $runTime) {
+              $runTime = $run.created_at
+            }
+            $runUtc = [DateTime]::Parse(
+              $runTime,
+              [Globalization.CultureInfo]::InvariantCulture,
+              [Globalization.DateTimeStyles]::AdjustToUniversal
+            )
+            $runIndia = [TimeZoneInfo]::ConvertTimeFromUtc($runUtc, $indiaTimeZone)
+            if ($runIndia.ToString("yyyy-MM-dd-HH") -eq $currentHour) {
+              Write-Host "An active or successful update already exists this India-time hour"
+              Add-Content -Path $env:GITHUB_OUTPUT -Value "should_run=false"
               exit 0
-            fi
-          done <<< "$runs"
+            }
+          }
 
-          echo "No active or successful update yet this India-time hour; proceeding"
-          echo "should_run=true" >> "$GITHUB_OUTPUT"
+          Write-Host "No active or successful update yet this India-time hour; proceeding"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "should_run=true"
 
       - name: Checkout
         if: steps.hour_guard.outputs.should_run == 'true'
@@ -75,15 +97,16 @@ jobs:
         env:
           NAUKRI_STORAGE_STATE_GZ_B64: ${{ secrets.NAUKRI_STORAGE_STATE_GZ_B64 }}
           NAUKRI_STORAGE_STATE_B64: ${{ secrets.NAUKRI_STORAGE_STATE_B64 }}
+        shell: powershell
         run: |
-          if [ -n "$NAUKRI_STORAGE_STATE_GZ_B64" ]; then
-            echo "Compressed Naukri session secret is configured"
-          elif [ -n "$NAUKRI_STORAGE_STATE_B64" ]; then
-            echo "Legacy Base64 Naukri session secret is configured"
-          else
-            echo "::error::This workflow requires an authenticated Naukri session because Actions cannot complete OTP/captcha. Run scripts/capture_session.py locally, then scripts/set_session_secret.py to configure NAUKRI_STORAGE_STATE_GZ_B64."
+          if (-not [string]::IsNullOrWhiteSpace($env:NAUKRI_STORAGE_STATE_GZ_B64)) {
+            Write-Host "Compressed Naukri session secret is configured"
+          } elseif (-not [string]::IsNullOrWhiteSpace($env:NAUKRI_STORAGE_STATE_B64)) {
+            Write-Host "Legacy Base64 Naukri session secret is configured"
+          } else {
+            Write-Error "This workflow requires an authenticated Naukri session. Configure NAUKRI_STORAGE_STATE_GZ_B64."
             exit 1
-          fi
+          }
 
       - name: Set up Python
         if: steps.hour_guard.outputs.should_run == 'true'
@@ -97,20 +120,25 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          playwright install --with-deps chromium
+          python -m playwright install chromium
 
-      - name: Restore resume from secret (optional)
-        if: steps.hour_guard.outputs.should_run == 'true'
+      - name: Restore résumé from secret or verify checked-in résumé
+        if: steps.hour_guard.outputs.should_run == 'true' && github.event.inputs.dry_run != 'true'
         env:
           RESUME_B64: ${{ secrets.RESUME_B64 }}
+        shell: powershell
         run: |
-          if [ -n "$RESUME_B64" ]; then
-            mkdir -p assets
-            echo "$RESUME_B64" | base64 -d > assets/resume.pdf
-            echo "Restored assets/resume.pdf from secret"
-          else
-            echo "RESUME_B64 not provided; keeping repository resume"
-          fi
+          if (-not [string]::IsNullOrWhiteSpace($env:RESUME_B64)) {
+            New-Item -ItemType Directory -Force -Path assets | Out-Null
+            $resumeBytes = [Convert]::FromBase64String($env:RESUME_B64)
+            [IO.File]::WriteAllBytes((Join-Path $PWD "assets\resume.pdf"), $resumeBytes)
+            Write-Host "Restored assets/resume.pdf from secret"
+          } elseif (Test-Path "assets\resume.pdf") {
+            Write-Host "Using assets/resume.pdf from the repository"
+          } else {
+            Write-Error "Résumé missing. Configure the RESUME_B64 Actions secret or include assets/resume.pdf in the repository."
+            exit 1
+          }
 
       - name: Run Naukri agent
         if: steps.hour_guard.outputs.should_run == 'true'
@@ -120,6 +148,7 @@ jobs:
           NAUKRI_STORAGE_STATE_GZ_B64: ${{ secrets.NAUKRI_STORAGE_STATE_GZ_B64 }}
           NAUKRI_STORAGE_STATE_B64: ${{ secrets.NAUKRI_STORAGE_STATE_B64 }}
           NAUKRI_MODE: resume_summary
+          HEADLESS: "0"
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
         run: python src/main.py
 
