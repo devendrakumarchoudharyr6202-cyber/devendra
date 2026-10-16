@@ -183,6 +183,7 @@ class NaukriAgent:
             "args": [
                 "--disable-blink-features=AutomationControlled",
                 "--disable-dev-shm-usage",
+                "--disable-http2",
                 "--no-sandbox",
             ],
         }

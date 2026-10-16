@@ -151,6 +151,20 @@ class StorageStateSecretTests(unittest.TestCase):
 
 
 class ResumeSummaryRunTests(unittest.TestCase):
+    def test_browser_launch_disables_http2(self):
+        agent = object.__new__(NaukriAgent)
+        agent.headless = True
+        agent.timeout = 1000
+        browser = MagicMock()
+        playwright = MagicMock()
+        playwright.chromium.launch.return_value = browser
+
+        with patch.object(agent, "_load_storage_state", return_value=None):
+            agent._launch(playwright)
+
+        launch_kwargs = playwright.chromium.launch.call_args.kwargs
+        self.assertIn("--disable-http2", launch_kwargs["args"])
+
     def test_login_checks_profile_directly_for_existing_session(self):
         agent = object.__new__(NaukriAgent)
         agent.email = ""
