@@ -6,9 +6,9 @@ from __future__ import annotations
 import base64
 import gzip
 import json
+import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -18,6 +18,18 @@ STORAGE_PATH = ROOT / "storage_state.json"
 SECRET_NAME = "NAUKRI_STORAGE_STATE_GZ_B64"
 GITHUB_SECRET_LIMIT = 48 * 1024
 CACHE_PREFIX = "srp_simjobs_reco_wdgt_"
+
+
+def find_github_cli() -> str | None:
+    executable = shutil.which("gh")
+    if executable:
+        return executable
+
+    program_files = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+    installed_executable = program_files / "GitHub CLI" / "gh.exe"
+    if installed_executable.is_file():
+        return str(installed_executable)
+    return None
 
 
 def repository_from_origin(remote_url: str) -> str:
@@ -94,25 +106,31 @@ def encode_storage_state(path: Path = STORAGE_PATH) -> tuple[str, int]:
 
 
 def main() -> int:
-    if shutil.which("gh") is None:
-        raise SystemExit("GitHub CLI (`gh`) is required. Install it, then retry.")
+    gh = find_github_cli()
+    if gh is None:
+        raise SystemExit(
+            "GitHub CLI (`gh`) is required. Install it with "
+            "`winget install --id GitHub.cli --exact`, then retry."
+        )
 
     auth = subprocess.run(
-        ["gh", "auth", "status", "--hostname", "github.com"],
+        [gh, "auth", "status", "--hostname", "github.com"],
         capture_output=True,
         text=True,
         check=False,
     )
     if auth.returncode:
         raise SystemExit(
-            "GitHub CLI is not authenticated. Run `gh auth login`, then retry."
+            "GitHub CLI is not authenticated. Run "
+            "`& \"$env:ProgramFiles\\GitHub CLI\\gh.exe\" auth login` "
+            "in PowerShell, then retry."
         )
 
     repository = get_repository()
     encoded, compact_size = encode_storage_state()
     result = subprocess.run(
         [
-            "gh",
+            gh,
             "secret",
             "set",
             SECRET_NAME,

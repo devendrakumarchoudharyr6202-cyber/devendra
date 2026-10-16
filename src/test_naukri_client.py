@@ -15,8 +15,23 @@ from naukri_client import NaukriAgent
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from set_session_secret import (  # noqa: E402
     encode_storage_state,
+    find_github_cli,
     repository_from_origin,
 )
+
+
+class GitHubCliTests(unittest.TestCase):
+    def test_finds_installed_cli_outside_path(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            executable = Path(temp_dir) / "GitHub CLI" / "gh.exe"
+            executable.parent.mkdir()
+            executable.touch()
+
+            with (
+                patch("set_session_secret.shutil.which", return_value=None),
+                patch.dict(os.environ, {"ProgramFiles": temp_dir}),
+            ):
+                self.assertEqual(find_github_cli(), str(executable))
 
 
 class SessionSecretRepositoryTests(unittest.TestCase):

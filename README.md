@@ -35,17 +35,18 @@ Repo → **Settings → Secrets and variables → Actions**:
 
 | Secret | Required | What it is |
 |--------|----------|------------|
-| `NAUKRI_EMAIL` | With password login | Naukri login email |
-| `NAUKRI_PASSWORD` | With email login | Naukri password |
-| `NAUKRI_STORAGE_STATE_GZ_B64` | Either this or the email/password pair | Compressed authenticated browser session; preferred for Actions secrets |
-| `NAUKRI_STORAGE_STATE_B64` | Either this or the email/password pair | Base64 authenticated browser session; refresh it when expired |
+| `NAUKRI_EMAIL` | Optional fallback | Naukri login email; headless Actions cannot complete OTP or captcha |
+| `NAUKRI_PASSWORD` | Optional fallback | Naukri password; headless Actions cannot complete OTP or captcha |
+| `NAUKRI_STORAGE_STATE_GZ_B64` | Recommended for OTP login | Compressed authenticated browser session; preferred for Actions secrets |
+| `NAUKRI_STORAGE_STATE_B64` | Alternative | Base64 authenticated browser session; refresh it when expired |
 | `RESUME_B64` | optional | base64 of resume.pdf if not in repo |
 
 Add these under **Settings → Secrets and variables → Actions**. Never put
 credentials or session data in workflow files or commit them to the repository.
 The workflows validate that either the email/password pair or session secret is
 configured before installing dependencies. If a session secret has expired,
-refresh it or configure the email/password pair as a fallback.
+refresh it; email/password login is only a fallback when Naukri does not require
+OTP or captcha.
 
 ### 3. Capture a login session (recommended)
 
@@ -55,16 +56,36 @@ Naukri often asks for OTP in CI. Capture cookies once on your machine:
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 playwright install chromium
-cp .env.example .env   # fill email/password
 python scripts/capture_session.py
 ```
 
-On Windows, install and authenticate GitHub CLI (`gh auth login`), then update
-the session secret directly without copying or displaying it:
+The capture script opens a browser and waits while you complete the Naukri login
+yourself, including OTP or captcha. It does not need your password in `.env`.
+Keep the browser open until the script confirms that it saved the session.
 
-```bash
-python scripts/set_session_secret.py
+On Windows, run these commands from the repository root in PowerShell. They
+use the virtual environment's Python directly, so activation is not required:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m playwright install chromium
+.\.venv\Scripts\python.exe scripts\capture_session.py
 ```
+
+Complete the OTP/captcha in the opened browser and wait for the capture script
+to confirm it saved `storage_state.json`. Then authenticate GitHub CLI and
+upload the session directly without copying or displaying it:
+
+```powershell
+& "$env:ProgramFiles\GitHub CLI\gh.exe" auth login
+& "$env:ProgramFiles\GitHub CLI\gh.exe" auth status
+.\.venv\Scripts\python.exe scripts\set_session_secret.py
+```
+
+If GitHub CLI is not installed, install it with
+`winget install --id GitHub.cli --exact`. The commands above use its install
+path directly, so a terminal restart or PATH update is not required.
 
 The script removes only Naukri's large similar-jobs recommendation caches,
 compresses the remaining session, verifies it fits GitHub's secret-size limit,
