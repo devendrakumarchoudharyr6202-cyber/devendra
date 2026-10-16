@@ -151,6 +151,25 @@ class StorageStateSecretTests(unittest.TestCase):
 
 
 class ResumeSummaryRunTests(unittest.TestCase):
+    def test_login_checks_profile_directly_for_existing_session(self):
+        agent = object.__new__(NaukriAgent)
+        agent.email = ""
+        agent.password = ""
+        page = MagicMock()
+
+        with (
+            patch.object(agent, "_assert_not_blocked"),
+            patch.object(agent, "_dismiss_overlays"),
+            patch.object(agent, "_is_logged_in", return_value=True),
+        ):
+            agent._login(page)
+
+        page.goto.assert_called_once_with(
+            "https://www.naukri.com/mnjuser/profile",
+            wait_until="domcontentloaded",
+            timeout=90000,
+        )
+
     def test_resume_run_only_updates_summary_and_uploads_resume(self):
         agent = object.__new__(NaukriAgent)
         agent.dry_run = False

@@ -322,13 +322,10 @@ class NaukriAgent:
         )
 
     def _login(self, page: Page) -> None:
-        page.goto(HOME_URL, wait_until="domcontentloaded", timeout=90000)
-        page.wait_for_timeout(2000)
-        self._dismiss_overlays(page)
-
         page.goto(PROFILE_URL, wait_until="domcontentloaded", timeout=90000)
         page.wait_for_timeout(2500)
         self._assert_not_blocked(page)
+        self._dismiss_overlays(page)
 
         if self._is_logged_in(page):
             log.info("Already logged in via session")
