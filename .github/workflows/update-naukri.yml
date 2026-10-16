@@ -73,8 +73,6 @@ jobs:
       - name: Validate Naukri authentication
         if: steps.hour_guard.outputs.should_run == 'true'
         env:
-          NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
-          NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
           NAUKRI_STORAGE_STATE_GZ_B64: ${{ secrets.NAUKRI_STORAGE_STATE_GZ_B64 }}
           NAUKRI_STORAGE_STATE_B64: ${{ secrets.NAUKRI_STORAGE_STATE_B64 }}
         run: |
@@ -82,10 +80,8 @@ jobs:
             echo "Compressed Naukri session secret is configured"
           elif [ -n "$NAUKRI_STORAGE_STATE_B64" ]; then
             echo "Legacy Base64 Naukri session secret is configured"
-          elif [ -n "$NAUKRI_EMAIL" ] && [ -n "$NAUKRI_PASSWORD" ]; then
-            echo "::warning::Using email/password login. GitHub Actions cannot complete Naukri OTP or captcha. For OTP login, capture a session locally and configure NAUKRI_STORAGE_STATE_GZ_B64."
           else
-            echo "::error::Configure Actions secrets NAUKRI_EMAIL and NAUKRI_PASSWORD, or provide a Naukri session secret."
+            echo "::error::This workflow requires an authenticated Naukri session because Actions cannot complete OTP/captcha. Run scripts/capture_session.py locally, then scripts/set_session_secret.py to configure NAUKRI_STORAGE_STATE_GZ_B64."
             exit 1
           fi
 

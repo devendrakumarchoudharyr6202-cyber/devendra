@@ -43,10 +43,9 @@ Repo → **Settings → Secrets and variables → Actions**:
 
 Add these under **Settings → Secrets and variables → Actions**. Never put
 credentials or session data in workflow files or commit them to the repository.
-The workflows validate that either the email/password pair or session secret is
-configured before installing dependencies. If a session secret has expired,
-refresh it; email/password login is only a fallback when Naukri does not require
-OTP or captcha.
+For OTP/captcha login, the GitHub Actions workflows require a captured session
+secret and stop immediately if it is missing. Email/password credentials alone
+cannot complete OTP or captcha on the headless runner.
 
 ### 3. Capture a login session (recommended)
 
