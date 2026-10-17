@@ -376,13 +376,14 @@ def apply_jobs(
         })
 
     eligible.sort(key=lambda item: (item["age_hours"], -item["match_ratio"]))
-    selected = eligible[:max_apply]
+    selected = eligible if max_apply > 0 else []
 
     log.info(
-        "Jobs scanned=%d eligible=%d applying=%d",
+        "Jobs scanned=%d eligible=%d candidates=%d submission_limit=%d",
         len(raw),
         len(eligible),
         len(selected),
+        max_apply,
     )
     for job in selected:
         log.info(
@@ -426,6 +427,8 @@ def apply_jobs(
         return result
 
     for job in selected:
+        if len(submitted) >= max_apply:
+            break
         href = job.get("href") or ""
         if not href and str(job.get("job_id", "")).isdigit():
             href = f"https://www.naukri.com/job-listings-{job['job_id']}"
@@ -454,6 +457,10 @@ def apply_jobs(
             details["status"] = "submission_unconfirmed"
             unconfirmed.append(details)
             _record_application(job, "submission_unconfirmed")
+        elif status == "Apply button unavailable":
+            details["status"] = "apply_unavailable"
+            skipped.append(details)
+            _record_application(job, "apply_unavailable")
         else:
             skipped.append(details)
 

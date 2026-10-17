@@ -136,6 +136,55 @@ class JobApplicationTests(unittest.TestCase):
             )
             apply_detail.assert_called_once()
 
+    def test_missing_apply_button_is_skipped_and_next_job_is_tried(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_path = Path(temp_dir) / "applications.csv"
+            first_job = self._job()
+            second_job = {
+                **self._job(),
+                "job_id": "0987654321",
+                "title": "Data Analyst",
+                "company": "Next Analytics",
+                "href": "https://www.naukri.com/job-listings-0987654321",
+            }
+            env = patch.dict(os.environ, {"NAUKRI_APPLICATION_LOG_PATH": str(log_path)})
+            with (
+                env,
+                patch(
+                    "job_applier.collect_recommended_jobs",
+                    return_value=[first_job, second_job],
+                ),
+                patch("job_applier.collect_search_jobs", return_value=[]),
+                patch(
+                    "job_applier._apply_on_detail",
+                    side_effect=[
+                        (False, "Apply button unavailable"),
+                        (True, "Application confirmation shown"),
+                    ],
+                ) as apply_detail,
+            ):
+                result = apply_jobs(
+                    object(),
+                    ["Python", "SQL"],
+                    max_apply=1,
+                    search_queries=["Junior Data Analyst"],
+                    experience_years=1,
+                    target_titles=["Data Analyst", "Junior Data Analyst"],
+                )
+
+            self.assertEqual(apply_detail.call_count, 2)
+            self.assertEqual(result["applied_count"], 1)
+            self.assertEqual(
+                result["applications_submitted"][0]["company"], "Next Analytics"
+            )
+            self.assertEqual(result["skipped"][0]["status"], "apply_unavailable")
+            with log_path.open(encoding="utf-8", newline="") as csv_file:
+                rows = list(csv.DictReader(csv_file))
+            self.assertEqual(
+                [(row["job_id"], row["status"]) for row in rows],
+                [("1234567890", "apply_unavailable"), ("0987654321", "submitted")],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
