@@ -154,7 +154,8 @@ HEADLESS=0 python src/main.py --mode apply
 
 Rules:
 1. Search Recommended and configured role queries across Naukri India.
-2. Match the configured actual skills and 0–1-year/fresher experience.
+2. Match the configured target roles and actual skills; accept explicit
+   experience requirements overlapping 0–5 years.
 3. Prioritize postings from the last 24 hours; the configured cap is 50 per run
    and 50 per IST calendar day.
 4. Track applications in `artifacts/applications.csv`. Keep this ledger between

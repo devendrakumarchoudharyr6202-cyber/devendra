@@ -109,7 +109,8 @@ class JobApplicationTests(unittest.TestCase):
                     object(),
                     ["Python", "SQL"],
                     search_queries=["Junior Data Analyst"],
-                    experience_years=1,
+                    experience_min_years=0,
+                    experience_max_years=5,
                     target_titles=["Data Analyst", "Junior Data Analyst"],
                 )
 
@@ -131,7 +132,8 @@ class JobApplicationTests(unittest.TestCase):
                     object(),
                     ["Python", "SQL"],
                     search_queries=["Junior Data Analyst"],
-                    experience_years=1,
+                    experience_min_years=0,
+                    experience_max_years=5,
                     target_titles=["Data Analyst", "Junior Data Analyst"],
                 )
 
@@ -174,7 +176,8 @@ class JobApplicationTests(unittest.TestCase):
                     ["Python", "SQL"],
                     max_apply=1,
                     search_queries=["Junior Data Analyst"],
-                    experience_years=1,
+                    experience_min_years=0,
+                    experience_max_years=5,
                     target_titles=["Data Analyst", "Junior Data Analyst"],
                 )
 
@@ -189,6 +192,41 @@ class JobApplicationTests(unittest.TestCase):
             self.assertEqual(
                 [(row["job_id"], row["status"]) for row in rows],
                 [("1234567890", "apply_unavailable"), ("0987654321", "submitted")],
+            )
+
+    def test_only_jobs_with_experience_overlapping_configured_range_are_eligible(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            jobs = [
+                {**self._job(), "job_id": "1", "experience_text": "0-5 years"},
+                {**self._job(), "job_id": "2", "experience_text": "3-7 years"},
+                {**self._job(), "job_id": "3", "experience_text": "6+ years"},
+            ]
+            env = patch.dict(
+                os.environ,
+                {"NAUKRI_APPLICATION_LOG_PATH": str(Path(temp_dir) / "applications.csv")},
+            )
+            with (
+                env,
+                patch("job_applier.collect_recommended_jobs", return_value=jobs),
+                patch("job_applier.collect_search_jobs", return_value=[]),
+                patch("job_applier._apply_on_detail", return_value=(False, "Already applied")),
+            ):
+                result = apply_jobs(
+                    object(),
+                    ["Python", "SQL"],
+                    max_apply=1,
+                    experience_min_years=0,
+                    experience_max_years=5,
+                    search_queries=[],
+                    target_titles=["Data Analyst"],
+                )
+
+            self.assertEqual(
+                [job["job_id"] for job in result["selected"]], ["1", "2"]
+            )
+            self.assertIn(
+                "Experience requirement does not clearly include the 0–5-year range",
+                [row["reason"] for row in result["skipped"]],
             )
 
     def test_daily_application_count_uses_submitted_and_unconfirmed_rows(self):
@@ -242,7 +280,8 @@ class JobApplicationTests(unittest.TestCase):
                     max_apply=50,
                     daily_limit=50,
                     search_queries=["Junior Data Analyst"],
-                    experience_years=1,
+                    experience_min_years=0,
+                    experience_max_years=5,
                     target_titles=["Data Analyst", "Junior Data Analyst"],
                 )
 

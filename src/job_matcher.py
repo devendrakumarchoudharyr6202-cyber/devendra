@@ -226,6 +226,40 @@ def experience_includes_years(experience_text: str, years: int) -> bool:
     return bool(single and float(single.group(1)) == years)
 
 
+def experience_overlaps_range(
+    experience_text: str, minimum_years: float, maximum_years: float
+) -> bool:
+    """Whether an explicit job experience requirement overlaps an allowed range."""
+    if minimum_years < 0 or maximum_years < minimum_years:
+        raise ValueError("Invalid allowed experience range")
+
+    text = (experience_text or "").lower()
+    number = r"(\d+(?:\.\d+)?)"
+    ranged = re.search(
+        rf"{number}\s*(?:-|to)\s*{number}\s*(?:\+?\s*)?"
+        r"(?:years?|yrs?)\b",
+        text,
+    )
+    if ranged:
+        job_minimum = float(ranged.group(1))
+        job_maximum = float(ranged.group(2))
+        return job_minimum <= maximum_years and job_maximum >= minimum_years
+
+    minimum = re.search(rf"{number}\s*\+\s*(?:years?|yrs?)\b", text)
+    if minimum:
+        return float(minimum.group(1)) <= maximum_years
+
+    single = re.search(rf"{number}\s*(?:years?|yrs?)\b", text)
+    if single:
+        years = float(single.group(1))
+        return minimum_years <= years <= maximum_years
+
+    if re.search(r"\bfresher\b|\bno experience\b", text):
+        return minimum_years <= 0 <= maximum_years
+
+    return False
+
+
 @dataclass
 class JobCard:
     job_id: str

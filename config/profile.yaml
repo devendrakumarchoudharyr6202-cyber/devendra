@@ -104,16 +104,18 @@ job_apply:
   min_skill_match: 0.60
   max_apply_per_run: 50
   max_apply_per_day: 50
+  experience_min_years: 0
+  experience_max_years: 5
   max_posting_age_hours: 24
   source: recommended_plus_search
   search_queries:
-    - "Data Analyst fresher"
-    - "Junior Data Analyst"
-    - "MIS Executive fresher"
-    - "Python Developer 0-1 years"
-    - "SQL Developer fresher"
-    - "Business Analyst Intern"
-    - "Data Analyst Intern"
+    - "Data Analyst 0-5 years"
+    - "Junior Data Analyst 0-5 years"
+    - "MIS Executive 0-5 years"
+    - "Python Developer 0-5 years"
+    - "SQL Developer 0-5 years"
+    - "Business Analyst 0-5 years"
+    - "Data Analyst Intern 0-5 years"
 
 behavior:
   headless: false

@@ -16,7 +16,7 @@ from playwright.sync_api import Page
 from job_matcher import (
     JobCard,
     age_to_hours,
-    experience_includes_years,
+    experience_overlaps_range,
     skill_match_ratio,
 )
 
@@ -164,12 +164,11 @@ def collect_search_jobs(
     page: Page,
     query: str,
     limit: int = 20,
-    experience_years: int = 1,
 ) -> list[dict[str, Any]]:
     slug = quote_plus(query).replace("+", "-").lower()
     url = (
         f"https://www.naukri.com/{slug}-jobs"
-        f"?k={quote_plus(query)}&experience={experience_years}&jobAge=1"
+        f"?k={quote_plus(query)}&jobAge=1"
     )
     page.goto(url, wait_until="domcontentloaded", timeout=90000)
     page.wait_for_timeout(3500)
@@ -308,9 +307,10 @@ def apply_jobs(
     min_match: float = 0.50,
     max_apply: int = 5,
     daily_limit: int = 50,
+    experience_min_years: float = 0,
+    experience_max_years: float = 5,
     dry_run: bool = False,
     search_queries: list[str] | None = None,
-    experience_years: int = 6,
     max_age_hours: int = 24,
     target_titles: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -320,9 +320,7 @@ def apply_jobs(
     for q in search_queries or SEARCH_QUERIES:
         try:
             raw.extend(
-                collect_search_jobs(
-                    page, q, experience_years=experience_years
-                )
+                collect_search_jobs(page, q)
             )
         except Exception as exc:
             log.warning("Search failed for %s: %s", q, exc)
@@ -370,13 +368,12 @@ def apply_jobs(
             skip(f"Posting age missing or older than {max_age_hours} hours")
             continue
         experience_text = item.get("experience_text") or ""
-        if not (
-            experience_includes_years(experience_text, experience_years)
-            or re.search(r"\b(fresher|entry.level|no experience)\b", experience_text, re.I)
+        if not experience_overlaps_range(
+            experience_text, experience_min_years, experience_max_years
         ):
             skip(
                 "Experience requirement does not clearly include "
-                f"{experience_years} year(s) or fresher eligibility"
+                f"the {experience_min_years:g}–{experience_max_years:g}-year range"
             )
             continue
         if item.get("already_applied"):
