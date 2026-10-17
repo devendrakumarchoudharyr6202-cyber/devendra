@@ -102,6 +102,8 @@ resume:
 job_apply:
   enabled: true
   min_skill_match: 0.60
+  require_skill_match: false
+  require_target_title_match: false
   max_apply_per_run: 50
   max_apply_per_day: 50
   experience_min_years: 0

@@ -229,6 +229,52 @@ class JobApplicationTests(unittest.TestCase):
                 [row["reason"] for row in result["skipped"]],
             )
 
+    def test_can_skip_title_and_skill_filters_when_configured(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            unrelated_job = {
+                **self._job(),
+                "title": "Office Assistant",
+                "required_skills": ["Unrelated Skill"],
+            }
+            env = patch.dict(
+                os.environ,
+                {"NAUKRI_APPLICATION_LOG_PATH": str(Path(temp_dir) / "applications.csv")},
+            )
+            with (
+                env,
+                patch(
+                    "job_applier.collect_recommended_jobs",
+                    return_value=[unrelated_job],
+                ),
+                patch("job_applier.collect_search_jobs", return_value=[]),
+                patch(
+                    "job_applier._apply_on_detail",
+                    return_value=(False, "Apply button unavailable"),
+                ),
+            ):
+                result = apply_jobs(
+                    object(),
+                    ["Python", "SQL"],
+                    min_match=0.60,
+                    require_skill_match=False,
+                    require_target_title_match=False,
+                    experience_min_years=0,
+                    experience_max_years=5,
+                    search_queries=[],
+                )
+
+            self.assertEqual(result["jobs_matching_criteria"], 1)
+            self.assertEqual(result["selected"][0]["title"], "Office Assistant")
+            self.assertEqual(result["selected"][0]["match"], 0.0)
+            self.assertNotIn(
+                "Title does not match a configured target role",
+                [row["reason"] for row in result["skipped"]],
+            )
+            self.assertNotIn(
+                "Skill match below 60%",
+                [row["reason"] for row in result["skipped"]],
+            )
+
     def test_daily_application_count_uses_submitted_and_unconfirmed_rows(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             log_path = Path(temp_dir) / "applications.csv"

@@ -309,6 +309,8 @@ def apply_jobs(
     daily_limit: int = 50,
     experience_min_years: float = 0,
     experience_max_years: float = 5,
+    require_skill_match: bool = True,
+    require_target_title_match: bool = True,
     dry_run: bool = False,
     search_queries: list[str] | None = None,
     max_age_hours: int = 24,
@@ -355,11 +357,13 @@ def apply_jobs(
         def skip(reason: str) -> None:
             skipped.append({"title": title, "company": company, "reason": reason})
 
-        if not _matches_target_title(title, target_titles or DEFAULT_TARGET_TITLES):
+        if require_target_title_match and not _matches_target_title(
+            title, target_titles or DEFAULT_TARGET_TITLES
+        ):
             skip("Title does not match a configured target role")
             continue
         ratio = skill_match_ratio(item.get("required_skills") or [], profile_skills)
-        if ratio + 1e-9 < min_match:
+        if require_skill_match and ratio + 1e-9 < min_match:
             skip(f"Skill match below {min_match:.0%}")
             continue
         age_text = item.get("age_text") or ""
