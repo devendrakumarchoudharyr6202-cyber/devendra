@@ -84,10 +84,8 @@ def plan_skills(
     removable = [s for s in non_core if s.casefold() in rotate_keys]
     to_remove: list[str] = []
     for i in range(min(remove_n, len(removable))):
-        if protect_core and removable[i].casefold() in core_keys:
-            continue
         idx = _rng_index(seed, len(removable), f"remove:{i}")
-        pick = removable.pop(idx % len(removable)) if removable else None
+        pick = removable.pop(idx)
         if pick and pick not in to_remove:
             to_remove.append(pick)
 

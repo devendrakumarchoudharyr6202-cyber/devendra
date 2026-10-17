@@ -69,3 +69,20 @@ def test_plan_removes_only_configured_rotate_skills():
 
     assert plan.remove == ["Rotating Skill"]
     assert "Legacy Framework" in plan.desired
+
+
+def test_plan_removes_multiple_configured_rotate_skills():
+    plan = plan_skills(
+        current=["Python", "SQL", "Excel", "Power BI"],
+        core=["Python"],
+        rotate=["SQL", "Excel", "Power BI"],
+        policy={
+            "add_per_run": 0,
+            "remove_per_run": 3,
+            "min_total": 1,
+            "max_total": 10,
+        },
+    )
+
+    assert len(plan.remove) == 3
+    assert set(plan.remove) == {"SQL", "Excel", "Power BI"}
