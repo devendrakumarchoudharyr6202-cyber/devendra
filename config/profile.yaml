@@ -102,7 +102,8 @@ resume:
 job_apply:
   enabled: true
   min_skill_match: 0.60
-  max_apply_per_run: 10
+  max_apply_per_run: 50
+  max_apply_per_day: 50
   max_posting_age_hours: 24
   source: recommended_plus_search
   search_queries:

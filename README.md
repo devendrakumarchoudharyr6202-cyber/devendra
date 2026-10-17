@@ -155,10 +155,13 @@ HEADLESS=0 python src/main.py --mode apply
 Rules:
 1. Search Recommended and configured role queries across Naukri India.
 2. Match the configured actual skills and 0–1-year/fresher experience.
-3. Prioritize postings from the last 24 hours and apply to up to 10 per run.
-4. Skip jobs already marked as applied on Naukri or present in the persistent
-   runner ledger (`naukri_applications.csv` under the runner's `_work` folder).
-5. Submit only when Naukri confirms after the initial Apply action. If another
+3. Prioritize postings from the last 24 hours; the configured cap is 50 per run
+   and 50 per IST calendar day.
+4. Track applications in `artifacts/applications.csv`. Keep this ledger between
+   runs so the daily cap and duplicate checks remain effective. Confirmed and
+   submission-unconfirmed attempts count toward the daily allowance.
+5. Skip jobs already marked as applied on Naukri or present in the ledger.
+   Submit only when Naukri confirms after the initial Apply action. If another
    Continue/Confirm/Submit action is required, do not click it; record the job
    as pending confirmation with its link for manual review.
 

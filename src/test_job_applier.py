@@ -4,10 +4,16 @@ import csv
 import os
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from job_applier import _apply_on_detail, apply_jobs
+from job_applier import (
+    IST,
+    _apply_on_detail,
+    _count_daily_applications,
+    apply_jobs,
+)
 
 
 class _Locator:
@@ -184,6 +190,66 @@ class JobApplicationTests(unittest.TestCase):
                 [(row["job_id"], row["status"]) for row in rows],
                 [("1234567890", "apply_unavailable"), ("0987654321", "submitted")],
             )
+
+    def test_daily_application_count_uses_submitted_and_unconfirmed_rows(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_path = Path(temp_dir) / "applications.csv"
+            yesterday_ist = (
+                (datetime.now(IST).date() - timedelta(days=1)).isoformat()
+                + "T23:59:00+05:30"
+            )
+            today_ist = datetime.now(IST).isoformat(timespec="seconds")
+            with log_path.open("w", encoding="utf-8", newline="") as csv_file:
+                writer = csv.DictWriter(
+                    csv_file,
+                    fieldnames=[
+                        "date_ist",
+                        "job_id",
+                        "company",
+                        "title",
+                        "application_link",
+                        "status",
+                    ],
+                )
+                writer.writeheader()
+                writer.writerows(
+                    [
+                        {"date_ist": today_ist, "job_id": "1", "status": "submitted"},
+                        {"date_ist": today_ist, "job_id": "2", "status": "submission_unconfirmed"},
+                        {"date_ist": today_ist, "job_id": "3", "status": "pending_confirmation"},
+                        {"date_ist": yesterday_ist, "job_id": "4", "status": "submitted"},
+                    ]
+                )
+
+            self.assertEqual(
+                _count_daily_applications(log_path, datetime.now(IST).date()), 2
+            )
+
+    def test_daily_limit_exhaustion_prevents_attempts(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            log_path = Path(temp_dir) / "applications.csv"
+            env = patch.dict(os.environ, {"NAUKRI_APPLICATION_LOG_PATH": str(log_path)})
+            with (
+                env,
+                patch("job_applier.collect_recommended_jobs", return_value=[self._job()]),
+                patch("job_applier.collect_search_jobs", return_value=[]),
+                patch("job_applier._count_daily_applications", return_value=50),
+                patch("job_applier._apply_on_detail") as apply_detail,
+            ):
+                result = apply_jobs(
+                    object(),
+                    ["Python", "SQL"],
+                    max_apply=50,
+                    daily_limit=50,
+                    search_queries=["Junior Data Analyst"],
+                    experience_years=1,
+                    target_titles=["Data Analyst", "Junior Data Analyst"],
+                )
+
+            self.assertEqual(result["daily_application_count"], 50)
+            self.assertEqual(result["daily_application_slots_remaining"], 0)
+            self.assertIn("daily application limit", result["message"])
+            apply_detail.assert_not_called()
 
 
 if __name__ == "__main__":

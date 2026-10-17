@@ -51,6 +51,7 @@ def run_apply_only(cfg: dict) -> dict:
     job_cfg = cfg.get("job_apply") or {}
     min_match = float(job_cfg.get("min_skill_match", 0.50))
     max_apply = int(job_cfg.get("max_apply_per_run", 5))
+    daily_limit = int(job_cfg.get("max_apply_per_day", 50))
 
     from playwright.sync_api import sync_playwright
 
@@ -64,6 +65,7 @@ def run_apply_only(cfg: dict) -> dict:
                 skills,
                 min_match=min_match,
                 max_apply=max_apply,
+                daily_limit=daily_limit,
                 dry_run=agent.dry_run,
                 search_queries=job_cfg.get("search_queries"),
                 experience_years=int(cfg.get("experience_years", 6)),

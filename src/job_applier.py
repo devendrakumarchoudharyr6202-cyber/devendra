@@ -6,7 +6,7 @@ import logging
 import csv
 import os
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus
@@ -82,6 +82,25 @@ def _load_application_history(path: Path) -> dict[str, str]:
             for row in csv.DictReader(csv_file)
             if row.get("status") not in {"dry_run", ""}
         }
+
+
+def _count_daily_applications(path: Path, today: date) -> int:
+    if not path.exists():
+        return 0
+    counted_jobs: set[str] = set()
+    with path.open(encoding="utf-8", newline="") as csv_file:
+        for row in csv.DictReader(csv_file):
+            if row.get("status") not in {"submitted", "submission_unconfirmed"}:
+                continue
+            try:
+                application_date = datetime.fromisoformat(row["date_ist"]).date()
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"Invalid application date in {path}: {row.get('date_ist')!r}"
+                ) from exc
+            if application_date == today:
+                counted_jobs.add(_job_key(row))
+    return len(counted_jobs)
 
 
 def _record_application(item: dict[str, Any], status: str) -> dict[str, str]:
@@ -288,6 +307,7 @@ def apply_jobs(
     *,
     min_match: float = 0.50,
     max_apply: int = 5,
+    daily_limit: int = 50,
     dry_run: bool = False,
     search_queries: list[str] | None = None,
     experience_years: int = 6,
@@ -310,6 +330,9 @@ def apply_jobs(
 
     log_path = _application_log_path()
     application_history = _load_application_history(log_path)
+    today = datetime.now(IST).date()
+    daily_count = _count_daily_applications(log_path, today)
+    submission_limit = min(max_apply, max(0, daily_limit - daily_count))
 
     unique: list[dict[str, Any]] = []
     skipped: list[dict[str, str]] = []
@@ -376,14 +399,16 @@ def apply_jobs(
         })
 
     eligible.sort(key=lambda item: (item["age_hours"], -item["match_ratio"]))
-    selected = eligible if max_apply > 0 else []
+    selected = eligible if submission_limit > 0 else []
 
     log.info(
-        "Jobs scanned=%d eligible=%d candidates=%d submission_limit=%d",
+        "Jobs scanned=%d eligible=%d candidates=%d daily_count=%d daily_limit=%d submission_limit=%d",
         len(raw),
         len(eligible),
         len(selected),
-        max_apply,
+        daily_count,
+        daily_limit,
+        submission_limit,
     )
     for job in selected:
         log.info(
@@ -413,6 +438,9 @@ def apply_jobs(
             for j in selected
         ],
         "applied_count": 0,
+        "daily_application_count": daily_count,
+        "daily_application_limit": daily_limit,
+        "daily_application_slots_remaining": max(0, daily_limit - daily_count),
         "applied": False,
         "applications_submitted": submitted,
         "applications_unconfirmed": unconfirmed,
@@ -423,11 +451,19 @@ def apply_jobs(
     }
 
     if not selected:
-        result["message"] = "No jobs met all skill, posting-age, and experience criteria."
+        if eligible and submission_limit == 0:
+            result["message"] = (
+                "The daily application limit has been reached; no jobs were submitted."
+            )
+        else:
+            result["message"] = (
+                "No jobs met all skill, posting-age, and experience criteria."
+            )
         return result
 
+    daily_attempts = daily_count
     for job in selected:
-        if len(submitted) >= max_apply:
+        if daily_attempts >= daily_limit or len(submitted) >= max_apply:
             break
         href = job.get("href") or ""
         if not href and str(job.get("job_id", "")).isdigit():
@@ -446,6 +482,7 @@ def apply_jobs(
         }
         if success:
             submitted.append(_record_application(job, "submitted"))
+            daily_attempts += 1
         elif status.startswith("Awaiting user approval:"):
             details["status"] = "pending_confirmation"
             unconfirmed.append(details)
@@ -457,6 +494,7 @@ def apply_jobs(
             details["status"] = "submission_unconfirmed"
             unconfirmed.append(details)
             _record_application(job, "submission_unconfirmed")
+            daily_attempts += 1
         elif status == "Apply button unavailable":
             details["status"] = "apply_unavailable"
             skipped.append(details)
@@ -468,6 +506,10 @@ def apply_jobs(
     result["applied"] = bool(submitted)
     result["applications_submitted"] = submitted
     result["applications_unconfirmed"] = unconfirmed
+    result["daily_application_count"] = daily_attempts
+    result["daily_application_slots_remaining"] = max(
+        0, daily_limit - daily_attempts
+    )
     result["message"] = f"Confirmed {len(submitted)} submitted applications."
     log.info(result["message"])
     return result
