@@ -4,96 +4,81 @@ experience_years: 1
 core_skills:
   - Python
   - SQL
+  - MySQL
   - Excel
   - Power BI
+  - Tableau
   - Data Analysis
   - Data Cleaning
   - Data Visualization
-
-rotate_skills:
-  - MySQL
-  - Data Transformation
   - Exploratory Data Analysis (EDA)
-  - Microsoft Power BI
-  - Matplotlib
-  - Seaborn
   - Pandas
   - NumPy
+  - Matplotlib
+  - Data Reporting
+
+rotate_skills:
   - Microsoft Excel
-  - VLOOKUP
-  - XLOOKUP
-  - IF
-  - SUMIF
-  - COUNTIF
+  - Excel Formulas
   - Pivot Tables
-  - Charts
-  - Interactive Dashboards
+  - Power BI Dashboards
+  - SQL Queries
+  - Data Transformation
+  - Dashboard Design
   - KPI Reporting
-  - HTML
-  - CSS
+  - Data Storytelling
+  - Business Intelligence
   - Jupyter Notebook
-  - VS Code
-  - Angular
-  - TypeScript
-  - JavaScript
-  - C#
-  - .NET Core
-  - ASP.NET Core Web API
-  - SQL Server
-  - REST APIs
-  - RxJS
-  - NgRx
-  - Entity Framework Core
-  - LINQ
-  - Microservices
-  - JWT authentication
-  - Swagger
   - GitHub
-  - Visual Studio Code
+  - Data Validation
+  - Analytical Thinking
+  - Problem Solving
 
 skill_policy:
   min_total: 7
   max_total: 150
-  add_per_run: 7
-  remove_per_run: 150
+  add_per_run: 20
+  remove_per_run: 0
   protect_core: true
 
 headline_variants:
-  - "Data Analyst | 1 Year Experience | Python | SQL | Excel | Power BI"
-  - "Junior Data Analyst | Python | SQL | Excel | Power BI | Data Visualization"
-  - "Data Analyst | Data Cleaning | Data Analysis | Python | SQL | Power BI"
-  - "Entry-Level Data Analyst | Python | SQL | Excel | Power BI"
+  - "Data Analyst | SQL | Python | Excel | Power BI | Tableau"
+  - "Aspiring Data Analyst | Python | SQL | Excel | Power BI | Data Visualization"
+  - "Data Analyst Intern | Data Cleaning | Data Analysis | Python | SQL | Power BI"
+  - "Computer Science Engineer | Data Analyst | Python | SQL | Excel | Power BI"
 
 summary_variants:
   - |
-    Data Analyst with 1 year of experience using Python, SQL, Excel, and Power
-    BI for data analysis, data cleaning, and data visualization. Focused on
-    accurate analysis and clear reporting.
+    Aspiring Data Analyst with internship and project-based experience in SQL,
+    Python, Excel, Power BI, and Tableau. Skilled in data cleaning,
+    exploratory data analysis, dashboard creation, and turning raw data into
+    actionable business insights.
   - |
-    Junior Data Analyst with 1 year of experience working with Python, SQL,
-    Excel, and Power BI. Skilled in data cleaning, analysis, and visualization,
-    with an interest in turning data into useful business insights.
+    Junior Data Analyst with hands-on experience using Python, SQL, Excel, and
+    Power BI for data cleaning, analysis, and visualization. Focused on
+    generating clear reporting and supporting data-driven decisions.
   - |
-    Data Analyst with 1 year of experience in Python, SQL, Excel, and Power BI.
-    Experienced in preparing and cleaning data, analyzing datasets, and
-    presenting findings through clear visualizations.
+    Data Analyst with experience in preparing and cleaning data, analyzing
+    datasets, and presenting insights through effective dashboards and reports.
+    Comfortable working with Python, SQL, Excel, and Power BI.
   - |
-    Entry-level Data Analyst with 1 year of experience applying Python, SQL,
-    Excel, and Power BI to data cleaning, analysis, and visualization tasks.
+    Computer Science Engineer transitioning into data analytics with a strong
+    foundation in SQL, Python, Excel, and Power BI. Interested in solving
+    business problems through data-driven insights and dashboards.
 
 scheduled_summary: |
-  Data Analyst with 1 year of experience using Python, SQL, Excel, and Power BI
-  for data analysis, data cleaning, and data visualization. Focused on accurate
-  analysis and clear reporting.
+  Aspiring Data Analyst with internship and project-based experience in SQL,
+  Python, Excel, Power BI, and Tableau. Skilled in data cleaning,
+  exploratory data analysis, dashboard creation, and turning raw data into
+  actionable business insights.
 
 target_job_titles:
   - Data Analyst
   - Junior Data Analyst
-  - MIS Executive
-  - Python Developer
-  - SQL Developer
-  - Business Analyst Intern
   - Data Analyst Intern
+  - MIS Executive
+  - Business Analyst
+  - BI Analyst
 
 resume:
   path: assets/resume.pdf
