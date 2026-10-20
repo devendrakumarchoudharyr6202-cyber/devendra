@@ -194,6 +194,42 @@ class JobApplicationTests(unittest.TestCase):
                 [("1234567890", "apply_unavailable"), ("0987654321", "submitted")],
             )
 
+    def test_pending_confirmations_count_toward_per_run_attempt_limit(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            jobs = [
+                {**self._job(), "job_id": str(index), "href": f"https://example.test/{index}"}
+                for index in range(3)
+            ]
+            env = patch.dict(
+                os.environ,
+                {"NAUKRI_APPLICATION_LOG_PATH": str(Path(temp_dir) / "applications.csv")},
+            )
+            with (
+                env,
+                patch("job_applier.collect_recommended_jobs", return_value=jobs),
+                patch("job_applier.collect_search_jobs", return_value=[]),
+                patch(
+                    "job_applier._apply_on_detail",
+                    return_value=(
+                        False,
+                        "Awaiting user approval: final submission was not clicked",
+                    ),
+                ) as apply_detail,
+            ):
+                result = apply_jobs(
+                    object(),
+                    ["Python", "SQL"],
+                    max_apply=2,
+                    search_queries=[],
+                    experience_min_years=0,
+                    experience_max_years=5,
+                    target_titles=["Data Analyst", "Junior Data Analyst"],
+                )
+
+            self.assertEqual(apply_detail.call_count, 2)
+            self.assertEqual(result["application_attempts"], 2)
+            self.assertEqual(result["daily_application_count"], 2)
+
     def test_only_jobs_with_experience_overlapping_configured_range_are_eligible(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             jobs = [
@@ -275,7 +311,7 @@ class JobApplicationTests(unittest.TestCase):
                 [row["reason"] for row in result["skipped"]],
             )
 
-    def test_daily_application_count_uses_submitted_and_unconfirmed_rows(self):
+    def test_daily_application_count_includes_pending_confirmations(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             log_path = Path(temp_dir) / "applications.csv"
             yesterday_ist = (
@@ -306,7 +342,7 @@ class JobApplicationTests(unittest.TestCase):
                 )
 
             self.assertEqual(
-                _count_daily_applications(log_path, datetime.now(IST).date()), 2
+                _count_daily_applications(log_path, datetime.now(IST).date()), 3
             )
 
     def test_daily_limit_exhaustion_prevents_attempts(self):

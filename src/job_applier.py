@@ -90,7 +90,11 @@ def _count_daily_applications(path: Path, today: date) -> int:
     counted_jobs: set[str] = set()
     with path.open(encoding="utf-8", newline="") as csv_file:
         for row in csv.DictReader(csv_file):
-            if row.get("status") not in {"submitted", "submission_unconfirmed"}:
+            if row.get("status") not in {
+                "submitted",
+                "submission_unconfirmed",
+                "pending_confirmation",
+            }:
                 continue
             try:
                 application_date = datetime.fromisoformat(row["date_ist"]).date()
@@ -439,6 +443,7 @@ def apply_jobs(
             for j in selected
         ],
         "applied_count": 0,
+        "application_attempts": 0,
         "daily_application_count": daily_count,
         "daily_application_limit": daily_limit,
         "daily_application_slots_remaining": max(0, daily_limit - daily_count),
@@ -463,8 +468,9 @@ def apply_jobs(
         return result
 
     daily_attempts = daily_count
+    application_attempts = 0
     for job in selected:
-        if daily_attempts >= daily_limit or len(submitted) >= max_apply:
+        if daily_attempts >= daily_limit or application_attempts >= max_apply:
             break
         href = job.get("href") or ""
         if not href and str(job.get("job_id", "")).isdigit():
@@ -484,10 +490,13 @@ def apply_jobs(
         if success:
             submitted.append(_record_application(job, "submitted"))
             daily_attempts += 1
+            application_attempts += 1
         elif status.startswith("Awaiting user approval:"):
             details["status"] = "pending_confirmation"
             unconfirmed.append(details)
             _record_application(job, "pending_confirmation")
+            daily_attempts += 1
+            application_attempts += 1
         elif dry_run:
             details["status"] = "dry_run"
             unconfirmed.append(details)
@@ -496,6 +505,7 @@ def apply_jobs(
             unconfirmed.append(details)
             _record_application(job, "submission_unconfirmed")
             daily_attempts += 1
+            application_attempts += 1
         elif status == "Apply button unavailable":
             details["status"] = "apply_unavailable"
             skipped.append(details)
@@ -504,6 +514,7 @@ def apply_jobs(
             skipped.append(details)
 
     result["applied_count"] = len(submitted)
+    result["application_attempts"] = application_attempts
     result["applied"] = bool(submitted)
     result["applications_submitted"] = submitted
     result["applications_unconfirmed"] = unconfirmed
