@@ -184,6 +184,33 @@ class ResumeSummaryRunTests(unittest.TestCase):
             timeout=90000,
         )
 
+    def test_logged_in_homepage_is_recognized(self):
+        agent = object.__new__(NaukriAgent)
+        page = MagicMock()
+        page.title.return_value = "Naukri"
+        page.url = "https://www.naukri.com/"
+        page.locator.return_value.inner_text.return_value = (
+            "Profile performance\nRecommended jobs for you"
+        )
+
+        self.assertTrue(agent._is_logged_in(page))
+
+    def test_login_rechecks_session_after_login_redirect(self):
+        agent = object.__new__(NaukriAgent)
+        agent.email = "candidate@example.com"
+        agent.password = "test-password"
+        page = MagicMock()
+
+        with (
+            patch.object(agent, "_assert_not_blocked"),
+            patch.object(agent, "_dismiss_overlays"),
+            patch.object(agent, "_is_logged_in", side_effect=[False, True]),
+        ):
+            agent._login(page)
+
+        self.assertEqual(page.goto.call_count, 2)
+        self.assertEqual(page.goto.call_args.args[0], "https://www.naukri.com/nlogin/login")
+
     def test_resume_run_updates_configured_summary_and_uploads_resume(self):
         agent = object.__new__(NaukriAgent)
         agent.dry_run = False

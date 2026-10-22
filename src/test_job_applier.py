@@ -12,6 +12,7 @@ from job_applier import (
     IST,
     _apply_on_detail,
     _count_daily_applications,
+    _matches_excluded_title,
     apply_jobs,
 )
 
@@ -88,6 +89,16 @@ class JobApplicationTests(unittest.TestCase):
         self.assertIn("Awaiting user approval", status)
         self.assertEqual(page.apply_button.clicks, 1)
         self.assertEqual(page.submit_button.clicks, 0)
+
+    def test_business_development_titles_are_excluded_without_excluding_business_analyst(self):
+        self.assertTrue(
+            _matches_excluded_title(
+                "Business Development Executive", ["Business Development"]
+            )
+        )
+        self.assertFalse(
+            _matches_excluded_title("Business Analyst", ["Business Development"])
+        )
 
     def test_pending_application_is_recorded_and_not_retried(self):
         with tempfile.TemporaryDirectory() as temp_dir:

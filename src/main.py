@@ -76,6 +76,7 @@ def run_apply_only(cfg: dict) -> dict:
                 experience_max_years=experience_max_years,
                 require_skill_match=require_skill_match,
                 require_target_title_match=require_target_title_match,
+                excluded_title_terms=job_cfg.get("excluded_title_terms", []),
                 dry_run=agent.dry_run,
                 search_queries=job_cfg.get("search_queries"),
                 max_age_hours=int(job_cfg.get("max_posting_age_hours", 24)),

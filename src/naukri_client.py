@@ -291,7 +291,13 @@ class NaukriAgent:
             return False
         return any(
             k in body
-            for k in ("Resume headline", "Key skills", "Profile summary", "Career profile")
+            for k in (
+                "Resume headline",
+                "Key skills",
+                "Profile summary",
+                "Career profile",
+                "Profile performance",
+            )
         )
 
     def _login(self, page: Page) -> None:
@@ -316,6 +322,10 @@ class NaukriAgent:
         page.wait_for_timeout(2000)
         self._assert_not_blocked(page)
         self._dismiss_overlays(page)
+
+        if self._is_logged_in(page):
+            log.info("Already logged in via session")
+            return
 
         email_box = page.locator(
             "#usernameField, input[type='text'][placeholder*='Email'], "

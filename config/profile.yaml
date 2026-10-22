@@ -102,6 +102,8 @@ job_apply:
   experience_max_years: 5
   max_posting_age_hours: 24
   source: recommended_plus_search
+  excluded_title_terms:
+    - Business Development
   search_queries:
     - "Software Developer 0-5 years"
     - "Software Engineer 0-5 years"

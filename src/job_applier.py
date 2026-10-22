@@ -254,6 +254,15 @@ def _matches_target_title(title: str, target_titles: list[str]) -> bool:
     )
 
 
+def _matches_excluded_title(title: str, excluded_title_terms: list[str]) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
+    return any(
+        re.sub(r"[^a-z0-9]+", " ", term.lower()).strip() in normalized
+        for term in excluded_title_terms
+        if term.strip()
+    )
+
+
 def _apply_on_detail(page: Page, href: str, dry_run: bool) -> tuple[bool, str]:
     if not href:
         return False, "Job detail URL unavailable"
@@ -315,6 +324,7 @@ def apply_jobs(
     experience_max_years: float = 5,
     require_skill_match: bool = True,
     require_target_title_match: bool = True,
+    excluded_title_terms: list[str] | None = None,
     dry_run: bool = False,
     search_queries: list[str] | None = None,
     max_age_hours: int = 24,
@@ -361,6 +371,9 @@ def apply_jobs(
         def skip(reason: str) -> None:
             skipped.append({"title": title, "company": company, "reason": reason})
 
+        if _matches_excluded_title(title, excluded_title_terms or []):
+            skip("Title matches an excluded term")
+            continue
         if require_target_title_match and not _matches_target_title(
             title, target_titles or DEFAULT_TARGET_TITLES
         ):
