@@ -153,9 +153,11 @@ HEADLESS=0 python src/main.py --mode apply
 ```
 
 Rules:
-1. Search Recommended and configured role queries across Naukri India.
-2. The current configuration does not require a target-title or skill match.
-   It accepts explicit experience requirements overlapping 0–5 years.
+1. Search Recommended and configured role queries across Naukri India for
+   software development, Python development, data analysis, business analysis,
+   MIS, and data engineering roles. Business Development titles are excluded.
+2. Job titles must match a configured target role, meet the 60% skill-match
+   threshold, and have explicit experience requirements overlapping 0–5 years.
 3. Prioritize postings from the last 24 hours; the configured cap is 50 per run
    and 50 per IST calendar day.
 4. Track applications in `artifacts/applications.csv`. Keep this ledger between

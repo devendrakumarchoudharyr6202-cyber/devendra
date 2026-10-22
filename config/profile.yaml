@@ -73,12 +73,19 @@ scheduled_summary: |
   actionable business insights.
 
 target_job_titles:
+  - Software Developer
+  - Software Engineer
+  - Software Development Engineer
+  - Python Developer
   - Data Analyst
   - Junior Data Analyst
   - Data Analyst Intern
-  - MIS Executive
   - Business Analyst
-  - BI Analyst
+  - Business Analyst Intern
+  - MIS Executive
+  - Data Engineer
+  - Junior Data Engineer
+  - Data Engineer Intern
 
 resume:
   path: assets/resume.pdf
@@ -88,7 +95,7 @@ job_apply:
   enabled: true
   min_skill_match: 0.60
   require_skill_match: true
-  require_target_title_match: false
+  require_target_title_match: true
   max_apply_per_run: 50
   max_apply_per_day: 50
   experience_min_years: 0
@@ -96,13 +103,19 @@ job_apply:
   max_posting_age_hours: 24
   source: recommended_plus_search
   search_queries:
+    - "Software Developer 0-5 years"
+    - "Software Engineer 0-5 years"
+    - "Software Development Engineer 0-5 years"
+    - "Python Developer 0-5 years"
     - "Data Analyst 0-5 years"
     - "Junior Data Analyst 0-5 years"
-    - "MIS Executive 0-5 years"
-    - "Python Developer 0-5 years"
-    - "SQL Developer 0-5 years"
-    - "Business Analyst 0-5 years"
     - "Data Analyst Intern 0-5 years"
+    - "Business Analyst 0-5 years"
+    - "Business Analyst Intern 0-5 years"
+    - "MIS Executive 0-5 years"
+    - "Data Engineer 0-5 years"
+    - "Junior Data Engineer 0-5 years"
+    - "Data Engineer Intern 0-5 years"
 
 behavior:
   headless: false
