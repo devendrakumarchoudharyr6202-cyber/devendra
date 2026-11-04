@@ -33,6 +33,70 @@ SEARCH_QUERIES = [
     "Business Analyst Intern",
     "Data Analyst Intern",
 ]
+FRESHER_IT_SEARCH_QUERIES = [
+    "IT fresher",
+    "Software Developer Fresher",
+    "Software Engineer Fresher",
+    "Python Developer Fresher",
+    "Java Developer Fresher",
+    "Web Developer Fresher",
+    "Data Analyst Fresher",
+    "Data Engineer Fresher",
+    "QA Tester Fresher",
+    "Technical Support Fresher",
+    "IT Support Fresher",
+    "Network Engineer Fresher",
+    "Cyber Security Fresher",
+    "Cloud Engineer Fresher",
+]
+INTERNSHIP_SEARCH_QUERIES = [
+    "IT Intern",
+    "Software Developer Intern",
+    "Software Engineer Intern",
+    "Python Developer Intern",
+    "Java Developer Intern",
+    "Web Developer Intern",
+    "Data Analyst Intern",
+    "Data Engineer Intern",
+    "QA Tester Intern",
+    "Technical Support Intern",
+    "Cyber Security Intern",
+    "Cloud Engineer Intern",
+]
+IT_TITLE_TERMS = (
+    "software",
+    "developer",
+    "programmer",
+    "programming",
+    "data analyst",
+    "data scientist",
+    "data engineer",
+    "qa",
+    "quality assurance",
+    "tester",
+    "test engineer",
+    "qa engineer",
+    "software testing",
+    "cloud",
+    "network",
+    "cyber security",
+    "cybersecurity",
+    "system administrator",
+    "systems administrator",
+    "database",
+    "technical support",
+    "tech support",
+    "it support",
+    "it service",
+    "service desk",
+    "application support",
+    "web",
+    "mobile app",
+    "devops",
+    "artificial intelligence",
+    "machine learning",
+    "embedded software",
+)
 DEFAULT_TARGET_TITLES = [
     "Data Analyst",
     "Junior Data Analyst",
@@ -90,11 +154,7 @@ def _count_daily_applications(path: Path, today: date) -> int:
     counted_jobs: set[str] = set()
     with path.open(encoding="utf-8", newline="") as csv_file:
         for row in csv.DictReader(csv_file):
-            if row.get("status") not in {
-                "submitted",
-                "submission_unconfirmed",
-                "pending_confirmation",
-            }:
+            if row.get("status") != "submitted":
                 continue
             try:
                 application_date = datetime.fromisoformat(row["date_ist"]).date()
@@ -263,6 +323,51 @@ def _matches_excluded_title(title: str, excluded_title_terms: list[str]) -> bool
     )
 
 
+def _matches_it_title(title: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
+    tokens = set(normalized.split())
+    return "it" in tokens or any(
+        re.sub(r"[^a-z0-9]+", " ", term).strip() in normalized
+        for term in IT_TITLE_TERMS
+    )
+
+
+def _matches_internship_title(title: str) -> bool:
+    return bool(re.search(r"\bintern(?:ship)?s?\b", title, re.I))
+
+
+def _matches_fresher_experience(title: str, experience_text: str) -> bool:
+    text = f"{title} {experience_text}".lower()
+    explicit_fresher = bool(
+        re.search(
+            r"\bfreshers?\b|\bno experience\b|\bentry[- ]level\b|"
+            r"\brecent graduates?\b|\bnew graduates?\b",
+            text,
+        )
+    )
+    experience = (experience_text or "").lower()
+    number = r"(\d+(?:\.\d+)?)"
+    ranged = re.search(
+        rf"{number}\s*(?:-|to)\s*{number}\s*(?:\+?\s*)?"
+        r"(?:years?|yrs?)\b",
+        experience,
+    )
+    if ranged:
+        minimum, maximum = float(ranged.group(1)), float(ranged.group(2))
+        return minimum == 0 and maximum <= 2
+
+    minimum = re.search(rf"{number}\s*\+\s*(?:years?|yrs?)\b", experience)
+    if minimum:
+        return explicit_fresher and float(minimum.group(1)) == 0
+
+    single = re.search(rf"{number}\s*(?:years?|yrs?)\b", experience)
+    if single:
+        years = float(single.group(1))
+        return years == 0 or (explicit_fresher and years <= 1)
+
+    return explicit_fresher
+
+
 def _apply_on_detail(page: Page, href: str, dry_run: bool) -> tuple[bool, str]:
     if not href:
         return False, "Job detail URL unavailable"
@@ -317,6 +422,9 @@ def apply_jobs(
     page: Page,
     profile_skills: list[str],
     *,
+    source: str = "recommended_plus_search",
+    fresher_it_only: bool = False,
+    internships_only: bool = False,
     min_match: float = 0.50,
     max_apply: int = 5,
     daily_limit: int = 50,
@@ -328,19 +436,34 @@ def apply_jobs(
     dry_run: bool = False,
     search_queries: list[str] | None = None,
     max_age_hours: int = 24,
+    include_unknown_age: bool = False,
     target_titles: list[str] | None = None,
 ) -> dict[str, Any]:
+    if source not in {"recommended", "recommended_plus_search"}:
+        raise ValueError(f"Unsupported job source: {source}")
+
     raw: list[dict[str, Any]] = []
     search_errors: list[str] = []
-    raw.extend(collect_recommended_jobs(page))
-    for q in search_queries or SEARCH_QUERIES:
-        try:
-            raw.extend(
-                collect_search_jobs(page, q)
-            )
-        except Exception as exc:
-            log.warning("Search failed for %s: %s", q, exc)
-            search_errors.append(f"{q}: {exc}")
+    if source in {"recommended", "recommended_plus_search"}:
+        raw.extend(collect_recommended_jobs(page, limit=100))
+    if source == "recommended_plus_search":
+        queries = (
+            search_queries
+            if search_queries is not None
+            else INTERNSHIP_SEARCH_QUERIES
+            if internships_only
+            else FRESHER_IT_SEARCH_QUERIES
+            if fresher_it_only
+            else SEARCH_QUERIES
+        )
+        for q in queries:
+            try:
+                raw.extend(
+                    collect_search_jobs(page, q)
+                )
+            except Exception as exc:
+                log.warning("Search failed for %s: %s", q, exc)
+                search_errors.append(f"{q}: {exc}")
 
     log_path = _application_log_path()
     application_history = _load_application_history(log_path)
@@ -374,6 +497,15 @@ def apply_jobs(
         if _matches_excluded_title(title, excluded_title_terms or []):
             skip("Title matches an excluded term")
             continue
+        if fresher_it_only and not _matches_it_title(title):
+            skip("Title does not appear to be an IT role")
+            continue
+        if internships_only and not _matches_internship_title(title):
+            skip("Title does not identify an internship")
+            continue
+        if internships_only and not _matches_it_title(title):
+            skip("Title does not appear to be an IT role")
+            continue
         if require_target_title_match and not _matches_target_title(
             title, target_titles or DEFAULT_TARGET_TITLES
         ):
@@ -385,15 +517,25 @@ def apply_jobs(
             continue
         age_text = item.get("age_text") or ""
         age_hours = age_to_hours(age_text)
-        if age_hours > max_age_hours:
+        unknown_age = age_hours == age_to_hours("")
+        if age_hours > max_age_hours and not (
+            include_unknown_age and unknown_age
+        ):
             skip(f"Posting age missing or older than {max_age_hours} hours")
             continue
         experience_text = item.get("experience_text") or ""
-        if not experience_overlaps_range(
-            experience_text, experience_min_years, experience_max_years
-        ):
+        experience_matches = (
+            _matches_fresher_experience(title, experience_text)
+            if fresher_it_only
+            else experience_overlaps_range(
+                experience_text, experience_min_years, experience_max_years
+            )
+        )
+        if not experience_matches:
             skip(
-                "Experience requirement does not clearly include "
+                "Experience requirement is not clearly fresher/entry-level"
+                if fresher_it_only
+                else "Experience requirement does not clearly include "
                 f"the {experience_min_years:g}–{experience_max_years:g}-year range"
             )
             continue
@@ -480,10 +622,10 @@ def apply_jobs(
             )
         return result
 
-    daily_attempts = daily_count
+    daily_submissions = daily_count
     application_attempts = 0
     for job in selected:
-        if daily_attempts >= daily_limit or application_attempts >= max_apply:
+        if daily_submissions >= daily_limit or application_attempts >= max_apply:
             break
         href = job.get("href") or ""
         if not href and str(job.get("job_id", "")).isdigit():
@@ -502,13 +644,12 @@ def apply_jobs(
         }
         if success:
             submitted.append(_record_application(job, "submitted"))
-            daily_attempts += 1
+            daily_submissions += 1
             application_attempts += 1
         elif status.startswith("Awaiting user approval:"):
             details["status"] = "pending_confirmation"
             unconfirmed.append(details)
             _record_application(job, "pending_confirmation")
-            daily_attempts += 1
             application_attempts += 1
         elif dry_run:
             details["status"] = "dry_run"
@@ -517,7 +658,6 @@ def apply_jobs(
             details["status"] = "submission_unconfirmed"
             unconfirmed.append(details)
             _record_application(job, "submission_unconfirmed")
-            daily_attempts += 1
             application_attempts += 1
         elif status == "Apply button unavailable":
             details["status"] = "apply_unavailable"
@@ -531,10 +671,14 @@ def apply_jobs(
     result["applied"] = bool(submitted)
     result["applications_submitted"] = submitted
     result["applications_unconfirmed"] = unconfirmed
-    result["daily_application_count"] = daily_attempts
+    result["daily_application_count"] = daily_submissions
     result["daily_application_slots_remaining"] = max(
-        0, daily_limit - daily_attempts
+        0, daily_limit - daily_submissions
     )
-    result["message"] = f"Confirmed {len(submitted)} submitted applications."
+    result["message"] = (
+        "Dry run complete; no applications were submitted."
+        if dry_run
+        else f"Confirmed {len(submitted)} submitted applications."
+    )
     log.info(result["message"])
     return result

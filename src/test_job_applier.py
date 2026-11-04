@@ -13,6 +13,9 @@ from job_applier import (
     _apply_on_detail,
     _count_daily_applications,
     _matches_excluded_title,
+    _matches_fresher_experience,
+    _matches_internship_title,
+    _matches_it_title,
     apply_jobs,
 )
 
@@ -155,6 +158,152 @@ class JobApplicationTests(unittest.TestCase):
             )
             apply_detail.assert_called_once()
 
+    def test_recommended_source_does_not_search(self):
+        with (
+            patch("job_applier.collect_recommended_jobs", return_value=[]),
+            patch("job_applier.collect_search_jobs") as collect_search,
+        ):
+            result = apply_jobs(
+                object(),
+                ["Python", "SQL"],
+                source="recommended",
+            )
+
+        self.assertEqual(result["jobs_found"], 0)
+        collect_search.assert_not_called()
+
+    def test_fresher_it_mode_filters_non_it_and_non_entry_level_roles(self):
+        jobs = [
+            {**self._job(), "job_id": "1", "experience_text": "0-1 years"},
+            {
+                **self._job(),
+                "job_id": "2",
+                "title": "Customer Service Associate",
+                "experience_text": "0-1 years",
+            },
+            {
+                **self._job(),
+                "job_id": "3",
+                "title": "Software Engineer",
+                "experience_text": "3-5 years",
+            },
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            env = patch.dict(
+                os.environ,
+                {"NAUKRI_APPLICATION_LOG_PATH": str(Path(temp_dir) / "applications.csv")},
+            )
+            with (
+                env,
+                patch("job_applier.collect_recommended_jobs", return_value=jobs),
+                patch("job_applier.collect_search_jobs", return_value=[]),
+                patch(
+                    "job_applier._apply_on_detail",
+                    return_value=(False, "Dry run; application not submitted"),
+                ),
+            ):
+                result = apply_jobs(
+                    object(),
+                    [],
+                    source="recommended",
+                    fresher_it_only=True,
+                    experience_min_years=0,
+                    experience_max_years=1,
+                    require_skill_match=False,
+                    search_queries=[],
+                    dry_run=True,
+                )
+
+        self.assertEqual([job["job_id"] for job in result["selected"]], ["1"])
+        self.assertEqual(result["applications_unconfirmed"][0]["status"], "dry_run")
+
+    def test_it_and_fresher_filters_reject_unrelated_or_experienced_roles(self):
+        self.assertFalse(_matches_it_title("Quality Executive"))
+        self.assertFalse(_matches_it_title("BIM Architecture Engineer"))
+        self.assertTrue(_matches_it_title("IT Support Engineer"))
+        self.assertTrue(_matches_fresher_experience("Python Developer", "0-2 years"))
+        self.assertTrue(
+            _matches_fresher_experience("Software Fresher", "Not specified")
+        )
+        self.assertFalse(
+            _matches_fresher_experience("Software Engineer", "0-5 years")
+        )
+
+    def test_internship_mode_filters_out_non_intern_and_non_it_jobs(self):
+        jobs = [
+            {**self._job(), "job_id": "1", "title": "Python Developer Intern"},
+            {**self._job(), "job_id": "2", "title": "Python Developer"},
+            {**self._job(), "job_id": "3", "title": "Marketing Intern"},
+        ]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            env = patch.dict(
+                os.environ,
+                {"NAUKRI_APPLICATION_LOG_PATH": str(Path(temp_dir) / "applications.csv")},
+            )
+            with (
+                env,
+                patch("job_applier.collect_recommended_jobs", return_value=jobs),
+                patch("job_applier.collect_search_jobs", return_value=[]),
+                patch(
+                    "job_applier._apply_on_detail",
+                    return_value=(False, "Dry run; application not submitted"),
+                ) as apply_detail,
+            ):
+                result = apply_jobs(
+                    object(),
+                    [],
+                    source="recommended",
+                    internships_only=True,
+                    require_skill_match=False,
+                    require_target_title_match=False,
+                    search_queries=[],
+                    dry_run=True,
+                    max_apply=10,
+                )
+
+        self.assertEqual([job["job_id"] for job in result["selected"]], ["1"])
+        self.assertEqual(result["applications_unconfirmed"][0]["status"], "dry_run")
+        self.assertEqual(apply_detail.call_count, 1)
+
+    def test_internship_title_match(self):
+        self.assertTrue(_matches_internship_title("Software Engineering Intern"))
+        self.assertTrue(_matches_internship_title("Data Analyst Internship"))
+        self.assertFalse(_matches_internship_title("Junior Software Engineer"))
+
+    def test_internship_preview_can_include_unknown_posting_age(self):
+        job = {
+            **self._job(),
+            "title": "Python Developer Intern",
+            "age_text": "Age not available",
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            env = patch.dict(
+                os.environ,
+                {"NAUKRI_APPLICATION_LOG_PATH": str(Path(temp_dir) / "applications.csv")},
+            )
+            with (
+                env,
+                patch("job_applier.collect_recommended_jobs", return_value=[job]),
+                patch("job_applier.collect_search_jobs", return_value=[]),
+                patch(
+                    "job_applier._apply_on_detail",
+                    return_value=(False, "Dry run; application not submitted"),
+                ),
+            ):
+                result = apply_jobs(
+                    object(),
+                    [],
+                    source="recommended",
+                    internships_only=True,
+                    require_skill_match=False,
+                    require_target_title_match=False,
+                    search_queries=[],
+                    dry_run=True,
+                    include_unknown_age=True,
+                )
+
+        self.assertEqual([item["job_id"] for item in result["selected"]], ["1234567890"])
+
     def test_missing_apply_button_is_skipped_and_next_job_is_tried(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             log_path = Path(temp_dir) / "applications.csv"
@@ -205,7 +354,7 @@ class JobApplicationTests(unittest.TestCase):
                 [("1234567890", "apply_unavailable"), ("0987654321", "submitted")],
             )
 
-    def test_pending_confirmations_count_toward_per_run_attempt_limit(self):
+    def test_pending_confirmations_count_toward_per_run_attempt_limit_not_daily_success_limit(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             jobs = [
                 {**self._job(), "job_id": str(index), "href": f"https://example.test/{index}"}
@@ -239,7 +388,8 @@ class JobApplicationTests(unittest.TestCase):
 
             self.assertEqual(apply_detail.call_count, 2)
             self.assertEqual(result["application_attempts"], 2)
-            self.assertEqual(result["daily_application_count"], 2)
+            self.assertEqual(result["daily_application_count"], 0)
+            self.assertEqual(result["daily_application_slots_remaining"], 50)
 
     def test_only_jobs_with_experience_overlapping_configured_range_are_eligible(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -322,7 +472,7 @@ class JobApplicationTests(unittest.TestCase):
                 [row["reason"] for row in result["skipped"]],
             )
 
-    def test_daily_application_count_includes_pending_confirmations(self):
+    def test_daily_application_count_includes_only_confirmed_submissions(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             log_path = Path(temp_dir) / "applications.csv"
             yesterday_ist = (
@@ -353,7 +503,7 @@ class JobApplicationTests(unittest.TestCase):
                 )
 
             self.assertEqual(
-                _count_daily_applications(log_path, datetime.now(IST).date()), 3
+                _count_daily_applications(log_path, datetime.now(IST).date()), 1
             )
 
     def test_daily_limit_exhaustion_prevents_attempts(self):

@@ -152,6 +152,18 @@ unverified skills configured for cleanup.
 HEADLESS=0 python src/main.py --mode apply
 ```
 
+For an internship-only preview, run:
+
+```powershell
+python src\main.py --mode apply --internships-only --max-applications 10 --dry-run --include-unknown-age
+```
+
+`--internships-only` limits results to IT-related job titles containing
+“Intern” or “Internship”; `--max-applications` caps attempts for this run.
+`--dry-run` previews matches without submitting. `--include-unknown-age` is
+for previews where the posting age cannot be read. Remove `--dry-run` only
+when you are ready to submit applications.
+
 Rules:
 1. Search Recommended and configured role queries across Naukri India for
    software development, Python development, data analysis, business analysis,
@@ -162,8 +174,9 @@ Rules:
    and 50 per IST calendar day. Titles containing the configured excluded terms
    (currently “Business Development”) are skipped.
 4. Track applications in `artifacts/applications.csv`. Keep this ledger between
-   runs so the daily cap and duplicate checks remain effective. Confirmed and
-   submission-unconfirmed attempts count toward the daily allowance.
+   runs so the daily cap and duplicate checks remain effective. Only confirmed
+   submissions count toward the daily allowance; unconfirmed attempts still
+   count toward the per-run attempt limit and remain recorded for duplicate checks.
 5. Skip jobs already marked as applied on Naukri or present in the ledger.
    Submit only when Naukri confirms after the initial Apply action. If another
    Continue/Confirm/Submit action is required, do not click it; record the job
